@@ -1,0 +1,29 @@
+[
+  {
+    "id": "REC-0001",
+    "artist": "Jagjit Singh",
+    "albumTitle": "Sample Record (replace this file with your real export)",
+    "musicDirector": "Jagjit Singh",
+    "language": "Hindi/Urdu",
+    "category": "Ghazals",
+    "label": "HMV",
+    "catalogNumber": "SAMPLE-001",
+    "year": "1980",
+    "format": "LP",
+    "discCount": 1,
+    "conditionMedia": "",
+    "conditionSleeve": "",
+    "ownership": "New",
+    "purchaseDate": "",
+    "pricePaid": "",
+    "sellerSource": "",
+    "estimatedValue": "",
+    "discogsLink": "",
+    "photoFilename": null,
+    "notes": "This is placeholder data. Export your real collection from the Mac app (Collection -> Export Collection) and upload it here as collection.json to replace this.",
+    "tracks": [
+      { "id": "T1", "side": "A", "trackNumber": 1, "songTitle": "Sample Track One", "singers": "Jagjit Singh", "musicDirector": "Jagjit Singh", "lyricist": "", "duration": "" },
+      { "id": "T2", "side": "A", "trackNumber": 2, "songTitle": "Sample Track Two", "singers": "Jagjit Singh", "musicDirector": "Jagjit Singh", "lyricist": "", "duration": "" }
+    ]
+  }
+]

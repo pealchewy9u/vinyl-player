@@ -1,0 +1,361 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Vinyl Collection</title>
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="icons/icon-192.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="theme-color" content="#FFF8EC">
+<style>
+  :root {
+    --background: #FFF8EC;
+    --surface: #FFFFFF;
+    --surface-raised: #F5E6C8;
+    --brass: #E8823D;
+    --maroon: #C62828;
+    --text: #3A2615;
+    --text-muted: #8A7355;
+    --groove: #EFE0C4;
+  }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body {
+    margin: 0; padding: 0;
+    background: var(--background);
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "Helvetica Neue", sans-serif;
+    height: 100%;
+    overscroll-behavior-y: contain;
+  }
+  #app { display: flex; flex-direction: column; height: 100vh; height: 100dvh; }
+
+  header {
+    padding: calc(12px + env(safe-area-inset-top)) 16px 10px;
+    background: var(--background);
+    flex-shrink: 0;
+  }
+  h1 { font-size: 22px; margin: 0 0 10px; font-weight: 700; }
+
+  .search-row {
+    display: flex; align-items: center; gap: 8px;
+    background: var(--surface); border-radius: 10px; padding: 9px 12px;
+    margin-bottom: 8px;
+  }
+  .search-row input {
+    border: none; outline: none; background: transparent; flex: 1;
+    font-size: 15px; color: var(--text);
+  }
+  .search-row input::placeholder { color: var(--text-muted); }
+
+  select {
+    width: 100%; padding: 8px 10px; border-radius: 8px; border: 1px solid var(--groove);
+    background: var(--surface); color: var(--text); font-size: 14px; margin-bottom: 4px;
+  }
+
+  .tabs { display: flex; gap: 6px; padding: 0 16px 10px; flex-shrink: 0; }
+  .tab {
+    flex: 1; text-align: center; padding: 9px 0; border-radius: 8px;
+    font-size: 14px; font-weight: 600; color: var(--text-muted);
+    background: var(--surface);
+  }
+  .tab.active { background: var(--brass); color: white; }
+
+  main { flex: 1; overflow: hidden; position: relative; }
+
+  /* ---- List view ---- */
+  #list-view { height: 100%; overflow-y: auto; -webkit-overflow-scrolling: touch; padding-bottom: 30px; }
+  .record-row {
+    display: flex; align-items: center; gap: 12px;
+    padding: 10px 16px; border-bottom: 1px solid var(--groove);
+  }
+  .cover-thumb, .cover-placeholder {
+    width: 48px; height: 48px; border-radius: 6px; flex-shrink: 0;
+    display: flex; align-items: center; justify-content: center;
+    background: var(--surface-raised); overflow: hidden;
+  }
+  .cover-thumb img { width: 100%; height: 100%; object-fit: cover; }
+  .record-meta { flex: 1; min-width: 0; }
+  .record-title { font-size: 15px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .record-artist { font-size: 12px; color: var(--text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .category-badge {
+    font-size: 10px; font-weight: 600; color: #4A1B0C; background: var(--surface-raised);
+    padding: 3px 8px; border-radius: 20px; white-space: nowrap; flex-shrink: 0;
+  }
+  .empty-state { padding: 60px 24px; text-align: center; color: var(--text-muted); }
+
+  /* ---- Cover Flow view ---- */
+  #coverflow-view { height: 100%; display: none; flex-direction: column; }
+  .cf-scroll {
+    flex: 1; display: flex; align-items: center; overflow-x: auto; overflow-y: hidden;
+    scroll-snap-type: x mandatory; -webkit-overflow-scrolling: touch;
+    padding: 0 calc(50vw - 85px);
+  }
+  .cf-scroll::-webkit-scrollbar { display: none; }
+  .cf-card {
+    scroll-snap-align: center; flex-shrink: 0; width: 170px; margin: 0 10px;
+    display: flex; flex-direction: column; align-items: center;
+  }
+  .cf-cover, .cf-cover-placeholder {
+    width: 170px; height: 170px; border-radius: 8px; box-shadow: 0 10px 24px rgba(58,38,21,0.25);
+    display: flex; align-items: center; justify-content: center; background: var(--surface-raised);
+    overflow: hidden;
+  }
+  .cf-cover img { width: 100%; height: 100%; object-fit: cover; }
+  .cf-caption { text-align: center; padding: 16px 20px 0; flex-shrink: 0; }
+  .cf-title { font-size: 18px; font-weight: 700; }
+  .cf-artist { font-size: 13px; color: var(--text-muted); margin-top: 2px; }
+  .cf-category { margin-top: 20px; text-align: center; padding-bottom: 20px; }
+
+  /* ---- Detail sheet ---- */
+  #detail-overlay {
+    position: fixed; inset: 0; background: rgba(58,38,21,0.4); display: none;
+    align-items: flex-end; z-index: 50;
+  }
+  #detail-sheet {
+    background: var(--background); width: 100%; max-height: 82vh; border-radius: 18px 18px 0 0;
+    overflow-y: auto; padding: 20px 20px calc(30px + env(safe-area-inset-bottom));
+  }
+  .sheet-close { text-align: right; }
+  .sheet-close button {
+    border: none; background: var(--surface-raised); color: var(--text);
+    padding: 6px 14px; border-radius: 20px; font-size: 13px; font-weight: 600;
+  }
+  .sheet-cover { width: 110px; height: 110px; border-radius: 8px; margin: 10px 0; background: var(--surface-raised); overflow: hidden; }
+  .sheet-cover img { width: 100%; height: 100%; object-fit: cover; }
+  .sheet-title { font-size: 20px; font-weight: 700; }
+  .sheet-artist { font-size: 14px; color: var(--text-muted); margin-top: 2px; }
+  .sheet-fields { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 16px; font-size: 13px; }
+  .field-label { color: var(--text-muted); font-size: 11px; }
+  .field-value { font-weight: 500; }
+  .tracklist { margin-top: 18px; }
+  .track-row { padding: 7px 0; border-bottom: 1px solid var(--groove); font-size: 13px; }
+  .track-warning { color: var(--maroon); font-size: 11px; font-weight: 600; margin-top: 2px; }
+
+  #status-bar {
+    font-size: 11px; color: var(--text-muted); text-align: center; padding: 6px 0 2px;
+    flex-shrink: 0;
+  }
+  #refresh-btn {
+    border: none; background: none; color: var(--brass); font-weight: 600; font-size: 13px;
+  }
+</style>
+</head>
+<body>
+<div id="app">
+  <header>
+    <h1>Vinyl Collection</h1>
+    <div class="search-row">
+      <span>🔍</span>
+      <input id="search-input" type="text" placeholder="Search artist, album, catalog number…">
+    </div>
+    <select id="category-select"><option value="">All Categories</option></select>
+  </header>
+
+  <div class="tabs">
+    <div class="tab active" data-view="list">List</div>
+    <div class="tab" data-view="coverflow">Cover Flow</div>
+  </div>
+
+  <main>
+    <div id="list-view"></div>
+    <div id="coverflow-view">
+      <div class="cf-scroll" id="cf-scroll"></div>
+      <div class="cf-caption" id="cf-caption"></div>
+    </div>
+  </main>
+
+  <div id="status-bar">
+    <span id="status-text">Loading…</span>
+    <button id="refresh-btn">Refresh</button>
+  </div>
+</div>
+
+<div id="detail-overlay">
+  <div id="detail-sheet"></div>
+</div>
+
+<script>
+const DATA_URL = './collection.json';
+let records = [];
+let currentView = 'list';
+
+async function loadData() {
+  document.getElementById('status-text').textContent = 'Loading…';
+  try {
+    const res = await fetch(DATA_URL, { cache: 'no-store' });
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    records = await res.json();
+    localStorage.setItem('vinyl-cache', JSON.stringify(records));
+    const now = new Date();
+    localStorage.setItem('vinyl-cache-time', now.toISOString());
+    document.getElementById('status-text').textContent =
+      records.length + ' records · updated ' + now.toLocaleString([], {month:'short', day:'numeric', hour:'2-digit', minute:'2-digit'});
+  } catch (e) {
+    const cached = localStorage.getItem('vinyl-cache');
+    if (cached) {
+      records = JSON.parse(cached);
+      const t = localStorage.getItem('vinyl-cache-time');
+      document.getElementById('status-text').textContent =
+        'Offline — showing data from ' + (t ? new Date(t).toLocaleDateString() : 'last sync');
+    } else {
+      document.getElementById('status-text').textContent = 'Could not load collection data.';
+    }
+  }
+  buildCategoryFilter();
+  render();
+}
+
+function buildCategoryFilter() {
+  const sel = document.getElementById('category-select');
+  const cats = [...new Set(records.map(r => r.category).filter(Boolean))].sort();
+  sel.innerHTML = '<option value="">All Categories</option>' +
+    cats.map(c => `<option value="${c}">${c}</option>`).join('');
+}
+
+function filteredRecords() {
+  const q = document.getElementById('search-input').value.trim().toLowerCase();
+  const cat = document.getElementById('category-select').value;
+  return records
+    .filter(r => !cat || r.category === cat)
+    .filter(r => {
+      if (!q) return true;
+      const hay = [r.artist, r.albumTitle, r.catalogNumber, r.language].join(' ').toLowerCase();
+      return hay.includes(q);
+    })
+    .sort((a, b) => (a.albumTitle || '').localeCompare(b.albumTitle || ''));
+}
+
+function coverHtml(record, cls, placeholderCls) {
+  // photoFilename refers to a file on the Mac's local disk, not something this
+  // web app can reach -- so every record shows the placeholder disc for now.
+  // (A future step can add actual synced cover images.)
+  return `<div class="${placeholderCls}">💿</div>`;
+}
+
+function render() {
+  if (currentView === 'list') renderList(); else renderCoverFlow();
+}
+
+function renderList() {
+  const list = document.getElementById('list-view');
+  const items = filteredRecords();
+  if (items.length === 0) {
+    list.innerHTML = '<div class="empty-state">No records match.</div>';
+    return;
+  }
+  list.innerHTML = items.map(r => `
+    <div class="record-row" data-id="${r.id}">
+      ${coverHtml(r, 'cover-thumb', 'cover-placeholder')}
+      <div class="record-meta">
+        <div class="record-title">${escapeHtml(r.albumTitle || 'Untitled')}</div>
+        <div class="record-artist">${escapeHtml(r.artist || 'Unknown Artist')}</div>
+      </div>
+      <div class="category-badge">${escapeHtml(r.category || '')}</div>
+    </div>
+  `).join('');
+  list.querySelectorAll('.record-row').forEach(el => {
+    el.addEventListener('click', () => openDetail(el.dataset.id));
+  });
+}
+
+function renderCoverFlow() {
+  const scroll = document.getElementById('cf-scroll');
+  const items = filteredRecords();
+  scroll.innerHTML = items.map(r => `
+    <div class="cf-card" data-id="${r.id}">
+      ${coverHtml(r, 'cf-cover', 'cf-cover-placeholder')}
+    </div>
+  `).join('');
+
+  function updateCaption() {
+    const cardWidth = 190;
+    const idx = Math.round(scroll.scrollLeft / cardWidth);
+    const r = items[idx];
+    const caption = document.getElementById('cf-caption');
+    if (!r) { caption.innerHTML = ''; return; }
+    caption.innerHTML = `
+      <div class="cf-title">${escapeHtml(r.albumTitle || 'Untitled')}</div>
+      <div class="cf-artist">${escapeHtml(r.artist || 'Unknown Artist')}</div>
+    `;
+  }
+  scroll.onscroll = () => { clearTimeout(scroll._t); scroll._t = setTimeout(updateCaption, 60); };
+  scroll.querySelectorAll('.cf-card').forEach(el => {
+    el.addEventListener('click', () => openDetail(el.dataset.id));
+  });
+  updateCaption();
+}
+
+function openDetail(id) {
+  const r = records.find(x => x.id === id);
+  if (!r) return;
+  const dupIndex = {};
+  records.forEach(rec => (rec.tracks || []).forEach(t => {
+    const key = (t.songTitle || '').trim().toLowerCase();
+    if (!key) return;
+    dupIndex[key] = dupIndex[key] || [];
+    if (!dupIndex[key].includes(rec.albumTitle)) dupIndex[key].push(rec.albumTitle);
+  }));
+
+  const tracksHtml = (r.tracks || []).map(t => {
+    const key = (t.songTitle || '').trim().toLowerCase();
+    const others = (dupIndex[key] || []).filter(title => title !== r.albumTitle);
+    return `<div class="track-row">
+      ${escapeHtml(String(t.trackNumber || ''))}. ${escapeHtml(t.songTitle || '')}
+      ${others.length ? `<div class="track-warning">⚠ Also on: ${escapeHtml(others.join(', '))}</div>` : ''}
+    </div>`;
+  }).join('') || '<div class="field-label">No tracklist recorded.</div>';
+
+  document.getElementById('detail-sheet').innerHTML = `
+    <div class="sheet-close"><button onclick="closeDetail()">Close</button></div>
+    <div class="sheet-cover">💿</div>
+    <div class="sheet-title">${escapeHtml(r.albumTitle || 'Untitled')}</div>
+    <div class="sheet-artist">${escapeHtml(r.artist || 'Unknown Artist')}</div>
+    <div class="sheet-fields">
+      <div><div class="field-label">Music Director</div><div class="field-value">${escapeHtml(r.musicDirector || '—')}</div></div>
+      <div><div class="field-label">Year</div><div class="field-value">${escapeHtml(r.year || '—')}</div></div>
+      <div><div class="field-label">Label</div><div class="field-value">${escapeHtml(r.label || '—')}</div></div>
+      <div><div class="field-label">Catalog Number</div><div class="field-value">${escapeHtml(r.catalogNumber || '—')}</div></div>
+      <div><div class="field-label">Condition</div><div class="field-value">${escapeHtml(r.ownership || '—')}</div></div>
+      <div><div class="field-label">Category</div><div class="field-value">${escapeHtml(r.category || '—')}</div></div>
+    </div>
+    <div class="tracklist">
+      <div class="field-label" style="margin-bottom:6px;">TRACKLIST</div>
+      ${tracksHtml}
+    </div>
+  `;
+  document.getElementById('detail-overlay').style.display = 'flex';
+}
+function closeDetail() { document.getElementById('detail-overlay').style.display = 'none'; }
+
+function escapeHtml(str) {
+  return String(str).replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
+}
+
+document.querySelectorAll('.tab').forEach(tab => {
+  tab.addEventListener('click', () => {
+    document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+    tab.classList.add('active');
+    currentView = tab.dataset.view;
+    document.getElementById('list-view').style.display = currentView === 'list' ? 'block' : 'none';
+    document.getElementById('coverflow-view').style.display = currentView === 'coverflow' ? 'flex' : 'none';
+    render();
+  });
+});
+
+document.getElementById('search-input').addEventListener('input', render);
+document.getElementById('category-select').addEventListener('change', render);
+document.getElementById('refresh-btn').addEventListener('click', loadData);
+document.getElementById('detail-overlay').addEventListener('click', e => {
+  if (e.target.id === 'detail-overlay') closeDetail();
+});
+
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('./sw.js').catch(() => {});
+}
+
+loadData();
+</script>
+</body>
+</html>
