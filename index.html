@@ -250,7 +250,7 @@ function coverHtml(record, cls, placeholderCls) {
   // onerror swaps in the placeholder if that specific file isn't there --
   // e.g. you haven't uploaded every photo yet, or a filename doesn't match --
   // rather than showing a broken image icon.
-  const src = `./photos/${encodeURIComponent(record.photoFilename)}`;
+  const src = `./Photos/${encodeURIComponent(record.photoFilename)}`;
   return `<div class="${cls}"><img src="${src}" loading="lazy"
     onerror="this.parentElement.outerHTML='<div class=&quot;${placeholderCls}&quot;>💿</div>'"></div>`;
 }
