@@ -179,7 +179,14 @@
       <span>🔍</span>
       <input id="search-input" type="text" placeholder="Search artist, album, catalog number…">
     </div>
-    <select id="category-select"><option value="">All Categories</option></select>
+    <div style="display:flex; gap:8px;">
+      <select id="category-select" style="flex:1;"><option value="">All Categories</option></select>
+      <select id="ownership-select" style="flex:1;">
+        <option value="">New &amp; Pre-Owned</option>
+        <option value="New">New</option>
+        <option value="Pre-Owned">Pre-Owned</option>
+      </select>
+    </div>
   </header>
 
   <div class="tabs">
@@ -248,8 +255,10 @@ function buildCategoryFilter() {
 function filteredRecords() {
   const q = document.getElementById('search-input').value.trim().toLowerCase();
   const cat = document.getElementById('category-select').value;
+  const ownership = document.getElementById('ownership-select').value;
   return records
     .filter(r => !cat || r.category === cat)
+    .filter(r => !ownership || r.ownership === ownership)
     .filter(r => {
       if (!q) return true;
       const hay = [r.artist, r.albumTitle, r.catalogNumber, r.language].join(' ').toLowerCase();
@@ -443,6 +452,7 @@ document.querySelectorAll('.tab').forEach(tab => {
 
 document.getElementById('search-input').addEventListener('input', render);
 document.getElementById('category-select').addEventListener('change', render);
+document.getElementById('ownership-select').addEventListener('change', render);
 document.getElementById('refresh-btn').addEventListener('click', loadData);
 document.getElementById('detail-overlay').addEventListener('click', e => {
   if (e.target.id === 'detail-overlay') closeDetail();
