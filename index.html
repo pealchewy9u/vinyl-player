@@ -377,8 +377,19 @@ document.getElementById('detail-overlay').addEventListener('click', e => {
   if (e.target.id === 'detail-overlay') closeDetail();
 });
 
+// Deliberately NOT registering a service worker right now -- iOS is notoriously
+// slow to re-check an installed Home Screen PWA's service worker for updates,
+// which was causing code changes to silently never show up. Actively clean up
+// any previously-registered one too, so a phone that already installed the old
+// version doesn't stay stuck on it. We can reintroduce offline support later
+// once the app itself has settled and isn't changing every few minutes.
 if ('serviceWorker' in navigator) {
-  navigator.serviceWorker.register('./sw.js').catch(() => {});
+  navigator.serviceWorker.getRegistrations().then(regs => {
+    regs.forEach(reg => reg.unregister());
+  });
+}
+if ('caches' in window) {
+  caches.keys().then(keys => keys.forEach(k => caches.delete(k)));
 }
 
 loadData();
