@@ -107,6 +107,15 @@
     font-size: 48px;
   }
   .cf-cover img { width: 100%; height: 100%; object-fit: cover; }
+  .cf-reflection, .cf-reflection-placeholder {
+    width: 170px; height: 85px; border-radius: 8px;
+    display: flex; align-items: center; justify-content: center; background: var(--surface-raised);
+    overflow: hidden; font-size: 48px;
+    transform: scaleY(-1); margin-top: -2px;
+    -webkit-mask-image: linear-gradient(to bottom, rgba(0,0,0,0.28), transparent);
+    mask-image: linear-gradient(to bottom, rgba(0,0,0,0.28), transparent);
+  }
+  .cf-reflection img { width: 100%; height: 170px; object-fit: cover; display: block; }
   .cf-caption {
     text-align: center; padding: 10px 20px 0; flex-shrink: 0;
     height: 92px; /* fixed regardless of text length, so the layout below never shifts */
@@ -349,6 +358,7 @@ function renderCoverFlow() {
   scroll.innerHTML = items.map(r => `
     <div class="cf-card" data-id="${r.id}">
       ${coverHtml(r, 'cf-cover', 'cf-cover-placeholder')}
+      ${coverHtml(r, 'cf-reflection', 'cf-reflection-placeholder')}
     </div>
   `).join('');
 
