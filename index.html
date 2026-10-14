@@ -137,7 +137,10 @@
     border: none; background: var(--surface-raised); color: var(--text);
     padding: 6px 14px; border-radius: 20px; font-size: 13px; font-weight: 600;
   }
-  .sheet-cover { width: 110px; height: 110px; border-radius: 8px; margin: 10px 0; background: var(--surface-raised); overflow: hidden; }
+  .sheet-cover {
+    width: 110px; height: 110px; border-radius: 8px; margin: 10px 0; background: var(--surface-raised);
+    overflow: hidden; display: flex; align-items: center; justify-content: center; font-size: 32px;
+  }
   .sheet-cover img { width: 100%; height: 100%; object-fit: cover; }
   .sheet-title { font-size: 20px; font-weight: 700; }
   .sheet-artist { font-size: 14px; color: var(--text-muted); margin-top: 2px; }
@@ -402,7 +405,7 @@ function openDetail(id) {
 
   document.getElementById('detail-sheet').innerHTML = `
     <div class="sheet-close"><button onclick="closeDetail()">Close</button></div>
-    <div class="sheet-cover">💿</div>
+    ${coverHtml(r, 'sheet-cover', 'sheet-cover')}
     <div class="sheet-title">${escapeHtml(r.albumTitle || 'Untitled')}</div>
     <div class="sheet-artist">${escapeHtml(r.artist || 'Unknown Artist')}</div>
     <div class="sheet-fields">
