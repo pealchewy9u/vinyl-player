@@ -148,6 +148,17 @@
   .track-row { padding: 7px 0; border-bottom: 1px solid var(--groove); font-size: 13px; }
   .track-warning { color: var(--maroon); font-size: 11px; font-weight: 600; margin-top: 2px; }
 
+  #summary-view { height: 100%; overflow-y: auto; -webkit-overflow-scrolling: touch; padding: 4px 16px 30px; display: none; }
+  .summary-total { font-size: 13px; color: var(--text-muted); margin-bottom: 18px; }
+  .summary-section-title { font-size: 15px; font-weight: 700; margin-bottom: 10px; }
+  .cat-row { margin-bottom: 12px; }
+  .cat-row-top { display: flex; justify-content: space-between; font-size: 13px; margin-bottom: 4px; }
+  .cat-bar-track { background: var(--groove); border-radius: 4px; height: 8px; overflow: hidden; }
+  .cat-bar-fill { background: var(--brass); height: 100%; border-radius: 4px; }
+  .stat-blocks { display: flex; gap: 40px; margin-top: 24px; }
+  .stat-value { font-size: 26px; font-weight: 700; color: var(--brass); }
+  .stat-label { font-size: 12px; color: var(--text-muted); }
+
   #status-bar {
     font-size: 11px; color: var(--text-muted); text-align: center; padding: 6px 0 2px;
     flex-shrink: 0;
@@ -171,6 +182,7 @@
   <div class="tabs">
     <div class="tab active" data-view="list">List</div>
     <div class="tab" data-view="coverflow">Cover Flow</div>
+    <div class="tab" data-view="summary">Summary</div>
   </div>
 
   <main>
@@ -179,6 +191,7 @@
       <div class="cf-scroll" id="cf-scroll"></div>
       <div class="cf-caption" id="cf-caption"></div>
     </div>
+    <div id="summary-view"></div>
   </main>
 
   <div id="status-bar">
@@ -256,7 +269,43 @@ function coverHtml(record, cls, placeholderCls) {
 }
 
 function render() {
-  if (currentView === 'list') renderList(); else renderCoverFlow();
+  if (currentView === 'list') renderList();
+  else if (currentView === 'coverflow') renderCoverFlow();
+  else renderSummary();
+}
+
+function renderSummary() {
+  const container = document.getElementById('summary-view');
+  if (records.length === 0) {
+    container.innerHTML = '<div class="empty-state">Add some records to see a breakdown here.</div>';
+    return;
+  }
+
+  const counts = {};
+  records.forEach(r => {
+    const cat = r.category || 'Uncategorized';
+    counts[cat] = (counts[cat] || 0) + 1;
+  });
+  const sorted = Object.entries(counts).sort((a, b) => b[1] - a[1]);
+  const maxCount = Math.max(...sorted.map(([, c]) => c));
+
+  const newCount = records.filter(r => r.ownership === 'New').length;
+  const preOwnedCount = records.filter(r => r.ownership === 'Pre-Owned').length;
+
+  container.innerHTML = `
+    <div class="summary-total">${records.length} record${records.length === 1 ? '' : 's'} total</div>
+    <div class="summary-section-title">By Category</div>
+    ${sorted.map(([cat, count]) => `
+      <div class="cat-row">
+        <div class="cat-row-top"><span>${escapeHtml(cat)}</span><span>${count}</span></div>
+        <div class="cat-bar-track"><div class="cat-bar-fill" style="width:${(count / maxCount) * 100}%"></div></div>
+      </div>
+    `).join('')}
+    <div class="stat-blocks">
+      <div><div class="stat-value">${newCount}</div><div class="stat-label">New</div></div>
+      <div><div class="stat-value">${preOwnedCount}</div><div class="stat-label">Pre-Owned</div></div>
+    </div>
+  `;
 }
 
 function renderList() {
@@ -384,6 +433,7 @@ document.querySelectorAll('.tab').forEach(tab => {
     currentView = tab.dataset.view;
     document.getElementById('list-view').style.display = currentView === 'list' ? 'block' : 'none';
     document.getElementById('coverflow-view').style.display = currentView === 'coverflow' ? 'flex' : 'none';
+    document.getElementById('summary-view').style.display = currentView === 'summary' ? 'block' : 'none';
     render();
   });
 });
