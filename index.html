@@ -106,9 +106,21 @@
     font-size: 48px;
   }
   .cf-cover img { width: 100%; height: 100%; object-fit: cover; }
-  .cf-caption { text-align: center; padding: 16px 20px 0; flex-shrink: 0; }
-  .cf-title { font-size: 18px; font-weight: 700; }
-  .cf-artist { font-size: 13px; color: var(--text-muted); margin-top: 2px; }
+  .cf-caption {
+    text-align: center; padding: 10px 20px 0; flex-shrink: 0;
+    height: 92px; /* fixed regardless of text length, so the layout below never shifts */
+    display: flex; flex-direction: column; justify-content: flex-start;
+  }
+  .cf-title {
+    font-size: 17px; font-weight: 700; line-height: 1.25;
+    display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+  .cf-artist {
+    font-size: 12px; color: var(--text-muted); margin-top: 3px; line-height: 1.3;
+    display: -webkit-box; -webkit-line-clamp: 1; -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
   .cf-category { margin-top: 20px; text-align: center; padding-bottom: 20px; }
 
   /* ---- Detail sheet ---- */
