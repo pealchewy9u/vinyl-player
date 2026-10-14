@@ -243,10 +243,16 @@ function filteredRecords() {
 }
 
 function coverHtml(record, cls, placeholderCls) {
-  // photoFilename refers to a file on the Mac's local disk, not something this
-  // web app can reach -- so every record shows the placeholder disc for now.
-  // (A future step can add actual synced cover images.)
-  return `<div class="${placeholderCls}">💿</div>`;
+  if (!record.photoFilename) {
+    return `<div class="${placeholderCls}">💿</div>`;
+  }
+  // Looks for the image in a photos/ folder uploaded alongside collection.json.
+  // onerror swaps in the placeholder if that specific file isn't there --
+  // e.g. you haven't uploaded every photo yet, or a filename doesn't match --
+  // rather than showing a broken image icon.
+  const src = `./photos/${encodeURIComponent(record.photoFilename)}`;
+  return `<div class="${cls}"><img src="${src}" loading="lazy"
+    onerror="this.parentElement.outerHTML='<div class=&quot;${placeholderCls}&quot;>💿</div>'"></div>`;
 }
 
 function render() {
