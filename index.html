@@ -236,6 +236,29 @@
     font-size: 11px; color: var(--text-muted); text-align: center; padding: 6px 0 2px;
     flex-shrink: 0;
   }
+
+  /* Compact pricing, keeping tracklists near the top of the detail sheet. */
+  .detail-price-strip { display:flex; align-items:flex-start; gap:12px; justify-content:space-between;
+    border:1px solid var(--groove); border-radius:11px; background:var(--surface-raised);
+    padding:10px 12px; margin:14px 0 8px; }
+  .detail-price-part { flex:1; min-width:0; }
+  .detail-price-part + .detail-price-part { border-left:1px solid var(--groove); padding-left:12px; }
+  .detail-price-label { font-size:10px; color:var(--text-muted); font-weight:650; margin-bottom:4px; }
+  .detail-price-amount { font-size:15px; font-weight:700; line-height:1.3; overflow-wrap:anywhere; }
+  .detail-price-note { font-size:10px; color:var(--text-muted); margin-top:3px; }
+  .detail-price-link { font-size:11px; display:inline-block; margin:0 0 5px 2px; color:var(--brass); }
+  .value-top-pair { display:grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap:10px; margin-bottom:12px; }
+  .value-tile { background:var(--surface-raised); border:1px solid var(--groove); border-radius:15px; padding:14px 12px; min-width:0; }
+  .value-tile-label { font-size:11px; font-weight:600; color:var(--text-muted); margin-bottom:9px; }
+  .value-tile-amount { font-size:clamp(19px,5.5vw,28px); font-weight:750; letter-spacing:-.5px; line-height:1.16; overflow-wrap:anywhere; }
+  .value-tile-sub { font-size:12px; color:var(--text-muted); margin-top:6px; }
+  .value-delta { display:flex; flex-wrap:wrap; align-items:baseline; justify-content:space-between; gap:8px;
+    padding:11px 3px; font-size:13px; }
+  .value-delta strong { font-size:16px; }
+  .value-mini-info { border-top:1px solid var(--groove); margin-top:6px; padding-top:10px; font-size:12px; color:var(--text-muted); line-height:1.65; }
+  .value-warning { padding:10px 12px; border:1px solid var(--groove); background:var(--surface-raised);
+    border-radius:10px; font-size:12px; line-height:1.5; margin-bottom:12px; }
+  @media (max-width:360px) { .value-tile { padding:11px 9px; } .detail-price-strip { gap:8px; padding:9px; } .detail-price-part + .detail-price-part { padding-left:8px; } }
 </style>
 </head>
 <body>
@@ -455,81 +478,70 @@ function renderSummary() {
 
 function renderCollectionValue() {
   const container = document.getElementById('value-view');
-  if (records.length === 0) {
-    container.innerHTML = '<div class="empty-state">Add some records to see a breakdown here.</div>';
+  if (!records.length) {
+    container.innerHTML = '<div class="empty-state">No collection records yet.</div>';
     return;
   }
-
-  const counts = {};
-  records.forEach(r => {
-    const cat = r.category || 'Uncategorized';
-    counts[cat] = (counts[cat] || 0) + 1;
-  });
-  const sorted = Object.entries(counts).sort((a, b) => b[1] - a[1]);
-  const maxCount = Math.max(...sorted.map(([, c]) => c));
-
-  const priceTotals = { INR: 0, USD: 0 };
-  const priceCounts = { INR: 0, USD: 0 };
-  records.forEach(r => {
-    const amount = numericPrice(r);
-    if (amount === null) return;
-    const currency = r.purchaseCurrency === 'USD' ? 'USD' : 'INR';
-    priceTotals[currency] += amount;
-    priceCounts[currency]++;
-  });
-  const formatTotal = (currency) => new Intl.NumberFormat(currency === 'USD' ? 'en-US' : 'en-IN', {
-    style: 'currency', currency, maximumFractionDigits: 0, minimumFractionDigits: 0
-  }).format(priceTotals[currency]);
-
-  const listedRecords = records.filter(r => r.marketPriceStatus === 'Listed' && numericCurrentValue(r) !== null);
-  const fallbackRecords = records.filter(r =>
-    !(r.marketPriceStatus === 'Listed' && numericCurrentValue(r) !== null) && numericPrice(r) !== null);
-  const missingCount = records.length - listedRecords.length - fallbackRecords.length;
-  const listedTotalINR = listedRecords.reduce((total, r) => total + numericCurrentValue(r) *
-    (currentValueCurrency(r) === 'USD' ? inrPerUSD : 1), 0);
-  const fallbackTotalINR = fallbackRecords.reduce((total, r) => total + numericPrice(r) *
-    (r.purchaseCurrency === 'USD' ? inrPerUSD : 1), 0);
-  const indicativeTotalINR = listedTotalINR + fallbackTotalINR;
-  const comparableOnline = listedRecords.filter(r => numericPrice(r) !== null);
-  const comparedDifferenceINR = comparableOnline.reduce((total, r) => total +
-    numericCurrentValue(r) * (currentValueCurrency(r) === 'USD' ? inrPerUSD : 1) -
-    numericPrice(r) * (r.purchaseCurrency === 'USD' ? inrPerUSD : 1), 0);
-
-  const newCount = records.filter(r => r.ownership === 'New').length;
-  const preOwnedCount = records.filter(r => r.ownership === 'Pre-Owned').length;
-
-  const combinedINR = priceTotals.INR + priceTotals.USD * inrPerUSD;
-  const combinedUSD = combinedINR / inrPerUSD;
+  const purchase = { INR: 0, USD: 0, countINR: 0, countUSD: 0 };
+  let investmentINR = 0, indicativeINR = 0, onlineCount = 0, fallbackCount = 0, missingCount = 0;
+  let listedPurchaseINR = 0, listedMarketINR = 0;
+  for (const record of records) {
+    const paid = numericPrice(record);
+    const paidCurrency = record.purchaseCurrency === 'USD' ? 'USD' : 'INR';
+    const paidINR = paid === null ? null : paid * (paidCurrency === 'USD' ? inrPerUSD : 1);
+    if (paid !== null) {
+      purchase[paidCurrency] += paid;
+      purchase[paidCurrency === 'USD' ? 'countUSD' : 'countINR']++;
+      investmentINR += paidINR;
+    }
+    const quote = record.marketPriceStatus === 'Listed' ? numericCurrentValue(record) : null;
+    if (quote !== null) {
+      const marketINR = quote * (currentValueCurrency(record) === 'USD' ? inrPerUSD : 1);
+      indicativeINR += marketINR;
+      onlineCount++;
+      if (paidINR !== null) { listedPurchaseINR += paidINR; listedMarketINR += marketINR; }
+    } else if (paidINR !== null) {
+      indicativeINR += paidINR;
+      fallbackCount++;
+    } else {
+      missingCount++;
+    }
+  }
+  const deltaINR = indicativeINR - investmentINR;
+  const deltaPct = investmentINR > 0 ? deltaINR / investmentINR * 100 : 0;
+  const positive = deltaINR >= 0;
+  // A zero online coverage phone snapshot must not be mistaken for a real market assessment.
+  const unsyncedNote = onlineCount === 0 ? `<div class="value-warning">
+    No online quotes in this phone's collection data yet. On Mac, refresh online prices, then use <strong>Sync to Phone (GitHub) → Sync Now</strong>; finally tap Refresh here.
+  </div>` : '';
   container.innerHTML = `
-    <div class="summary-hero">
-      <div class="summary-eyebrow">TOTAL COLLECTION PURCHASE COST</div>
-      <div class="summary-hero-value">${currencyAmount(combinedINR, 'INR')}</div>
-      <div class="summary-hero-secondary">${currencyAmount(combinedUSD, 'USD')} · approximate conversion</div>
+    ${unsyncedNote}
+    <div class="value-top-pair">
+      <div class="value-tile">
+        <div class="value-tile-label">YOU PAID</div>
+        <div class="value-tile-amount">${currencyAmount(investmentINR, 'INR')}</div>
+        <div class="value-tile-sub">${currencyAmount(investmentINR / inrPerUSD, 'USD')}</div>
+      </div>
+      <div class="value-tile">
+        <div class="value-tile-label">CURRENT REFERENCE</div>
+        <div class="value-tile-amount">${currencyAmount(indicativeINR, 'INR')}</div>
+        <div class="value-tile-sub">${currencyAmount(indicativeINR / inrPerUSD, 'USD')}</div>
+      </div>
     </div>
-    <div class="summary-count-strip">
-      <div class="summary-count"><strong>${records.length}</strong><span>Records</span></div>
-      <div class="summary-count"><strong>${newCount}</strong><span>New</span></div>
-      <div class="summary-count"><strong>${preOwnedCount}</strong><span>Pre-owned</span></div>
+    <div class="value-delta"><span>Difference from purchase</span>
+      <strong>${positive ? '+' : '−'}${currencyAmount(Math.abs(deltaINR), 'INR')} (${positive ? '+' : '−'}${Math.abs(deltaPct).toFixed(1)}%)</strong>
     </div>
     <div class="summary-card">
-      <div class="summary-card-title">Your purchase breakdown</div>
-      <div class="summary-row"><span>INR · ${priceCounts.INR} records</span><strong>${formatTotal('INR')}</strong></div>
-      <div class="summary-row"><span>USD · ${priceCounts.USD} records</span><strong>${formatTotal('USD')}</strong></div>
-    </div>
-      <div class="summary-tiny" style="margin-top:8px">The exchange rate changes the display only, not what you paid.</div>
-    </div>
-    <div class="summary-card">
-      <div class="summary-card-title">Indicative collection value</div>
-      <div class="summary-row"><span>Combined reference value</span><strong>${currencyAmount(indicativeTotalINR, 'INR')}</strong></div>
-      <div class="summary-row"><span>Approx. USD</span><strong>${currencyAmount(indicativeTotalINR / inrPerUSD, 'USD')}</strong></div>
-      <div class="summary-row"><span>Difference from purchase</span><strong>${comparedDifferenceINR >= 0 ? '+' : ''}${currencyAmount(comparedDifferenceINR, 'INR')} (${combinedINR > 0 ? (comparedDifferenceINR / combinedINR * 100).toFixed(1) : '0.0'}%)</strong></div>
-      <div class="summary-row"><span>Online asking prices · ${listedRecords.length} records</span><strong>${currencyAmount(listedTotalINR, 'INR')}</strong></div>
-      <div class="summary-row"><span>Purchase-price fallback · ${fallbackRecords.length} records</span><strong>${currencyAmount(fallbackTotalINR, 'INR')}</strong></div>
-      ${missingCount ? `<div class="summary-tiny">${missingCount} records have neither an online price nor a purchase price.</div>` : ''}
-      <div class="summary-tiny" style="margin-top:10px">Online figures use lowest active Discogs asking prices (excluding shipping). Other records use what you paid as a reference, not a verified current market quote. Fallbacks contribute zero change.</div>
-    </div>
-  `;
-
+      <div class="summary-card-title">Price coverage</div>
+      <div class="summary-row"><span>Online listings</span><strong>${onlineCount} records</strong></div>
+      <div class="summary-row"><span>Using purchase price</span><strong>${fallbackCount} records</strong></div>
+      ${missingCount ? `<div class="summary-row"><span>Price unavailable</span><strong>${missingCount} records</strong></div>` : ''}
+      <div class="value-mini-info">
+        Purchased in INR: ${currencyAmount(purchase.INR, 'INR')} (${purchase.countINR}) · USD: ${currencyAmount(purchase.USD, 'USD')} (${purchase.countUSD})<br>
+        ${onlineCount ? `Online quote comparison for matching records: ${currencyAmount(listedMarketINR, 'INR')} vs ${currencyAmount(listedPurchaseINR, 'INR')} paid.<br>` : ''}
+        Current reference combines live asking prices and purchase-price fallbacks. Fallbacks are not verified market listings.
+      </div>
+    </div>`;
 }
 
 function renderList() {
@@ -630,16 +642,18 @@ function openDetail(id) {
     ${coverHtml(r, 'sheet-cover', 'sheet-cover')}
     <div class="sheet-title">${escapeHtml(r.albumTitle || 'Untitled')}</div>
     <div class="sheet-artist">${escapeHtml(r.artist || 'Unknown Artist')}</div>
-    <div class="sheet-price-card"><div class="field-label">YOU PAID</div><div class="field-value">${escapeHtml(purchasePrice(r))}</div></div>
-    ${r.marketPriceStatus === 'Listed' && numericCurrentValue(r) !== null ? `<div class="sheet-price-card">
-      <div class="field-label">LOWEST ONLINE ASKING PRICE · ${Number(r.marketListingsCount || 0)} listed</div>
-      <div class="field-value">${escapeHtml(currentValueText(r))}</div>
-      <div class="field-label">Discogs · checked ${escapeHtml(r.marketPriceCheckedAt ? new Date(r.marketPriceCheckedAt).toLocaleDateString() : 'unknown')}</div>
-      <div class="field-label">${escapeHtml(onlineAskComparison(r))}</div>
-      ${r.marketPriceSource && /^https:\/\/www\.discogs\.com\/sell\/release\/\d+$/.test(r.marketPriceSource) ? `<a href="${escapeHtml(r.marketPriceSource)}" target="_blank" rel="noopener noreferrer">View current listing</a>` : ''}
-    </div>` : `<div class="sheet-price-card"><div class="field-label">INDICATIVE PRICE · PURCHASE-PRICE FALLBACK</div>
-      <div class="field-value">${escapeHtml(numericPrice(r) !== null ? purchasePrice(r) : 'No price available')}</div>
-      <div class="field-label">No verified online quote. This is your purchase cost, not a current listing.</div></div>`}
+    <div class="detail-price-strip">
+      <div class="detail-price-part">
+        <div class="detail-price-label">YOU PAID</div>
+        <div class="detail-price-amount">${escapeHtml(purchasePrice(r))}</div>
+      </div>
+      <div class="detail-price-part">
+        <div class="detail-price-label">${r.marketPriceStatus === 'Listed' && numericCurrentValue(r) !== null ? 'ONLINE ASK' : 'REFERENCE'}</div>
+        <div class="detail-price-amount">${escapeHtml(r.marketPriceStatus === 'Listed' && numericCurrentValue(r) !== null ? currentValueText(r) : numericPrice(r) !== null ? purchasePrice(r) : '—')}</div>
+        <div class="detail-price-note">${r.marketPriceStatus === 'Listed' && numericCurrentValue(r) !== null ? 'Discogs listing' : 'Paid-price fallback'}</div>
+      </div>
+    </div>
+    ${r.marketPriceStatus === 'Listed' && numericCurrentValue(r) !== null && r.marketPriceSource && /^https:\/\/www\.discogs\.com\/sell\/release\/\d+$/.test(r.marketPriceSource) ? `<a class="detail-price-link" href="${escapeHtml(r.marketPriceSource)}" target="_blank" rel="noopener noreferrer">View Discogs listing</a>` : ''}
     <div class="sheet-fields">
       <div><div class="field-label">Music Director</div><div class="field-value">${escapeHtml(r.musicDirector || '—')}</div></div>
       <div><div class="field-label">Year</div><div class="field-value">${escapeHtml(r.year || '—')}</div></div>
