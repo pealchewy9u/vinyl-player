@@ -183,6 +183,10 @@
   .stat-blocks { display: flex; gap: 40px; margin-top: 24px; }
   .stat-value { font-size: 26px; font-weight: 700; color: var(--brass); }
   .stat-label { font-size: 12px; color: var(--text-muted); }
+  .purchase-summary { display: flex; gap: 12px; margin: 0 0 8px; flex-wrap: wrap; }
+  .purchase-summary > div { flex: 1; min-width: 135px; background: var(--surface); border-radius: 10px; padding: 12px; }
+  .purchase-sum { font-size: 20px; font-weight: 700; margin-top: 4px; }
+  .purchase-note { color: var(--text-muted); font-size: 11px; margin-bottom: 22px; }
 
   #status-bar {
     font-size: 11px; color: var(--text-muted); text-align: center; padding: 6px 0 2px;
@@ -325,11 +329,31 @@ function renderSummary() {
   const sorted = Object.entries(counts).sort((a, b) => b[1] - a[1]);
   const maxCount = Math.max(...sorted.map(([, c]) => c));
 
+  const priceTotals = { INR: 0, USD: 0 };
+  const priceCounts = { INR: 0, USD: 0 };
+  records.forEach(r => {
+    if (r.pricePaid === undefined || r.pricePaid === null || String(r.pricePaid).trim() === '') return;
+    const amount = Number(String(r.pricePaid).replace(/,/g, ''));
+    if (!Number.isFinite(amount) || amount < 0) return;
+    const currency = r.purchaseCurrency === 'USD' ? 'USD' : 'INR';
+    priceTotals[currency] += amount;
+    priceCounts[currency]++;
+  });
+  const formatTotal = (currency) => new Intl.NumberFormat(currency === 'USD' ? 'en-US' : 'en-IN', {
+    style: 'currency', currency, maximumFractionDigits: 2
+  }).format(priceTotals[currency]);
+
   const newCount = records.filter(r => r.ownership === 'New').length;
   const preOwnedCount = records.filter(r => r.ownership === 'Pre-Owned').length;
 
   container.innerHTML = `
     <div class="summary-total">${records.length} record${records.length === 1 ? '' : 's'} total</div>
+    <div class="summary-section-title">Purchase Cost</div>
+    <div class="purchase-summary">
+      <div><span class="field-label">INR (${priceCounts.INR} records)</span><div class="purchase-sum">${formatTotal('INR')}</div></div>
+      <div><span class="field-label">USD (${priceCounts.USD} records)</span><div class="purchase-sum">${formatTotal('USD')}</div></div>
+    </div>
+    <div class="purchase-note">Purchase costs shown separately; no exchange-rate conversion.</div>
     <div class="summary-section-title">By Category</div>
     ${sorted.map(([cat, count]) => `
       <div class="cat-row">
@@ -449,6 +473,7 @@ function openDetail(id) {
       <div><div class="field-label">Catalog Number</div><div class="field-value">${escapeHtml(r.catalogNumber || '—')}</div></div>
       <div><div class="field-label">Condition</div><div class="field-value">${escapeHtml(r.ownership || '—')}</div></div>
       <div><div class="field-label">Category</div><div class="field-value">${escapeHtml(r.category || '—')}</div></div>
+      <div><div class="field-label">Purchase Price</div><div class="field-value">${escapeHtml(purchasePrice(r))}</div></div>
     </div>
     <div class="tracklist">
       <div class="field-label" style="margin-bottom:6px;">TRACKLIST</div>
@@ -458,6 +483,17 @@ function openDetail(id) {
   document.getElementById('detail-overlay').style.display = 'flex';
 }
 function closeDetail() { document.getElementById('detail-overlay').style.display = 'none'; }
+
+function purchasePrice(record) {
+  const raw = record.pricePaid;
+  if (raw === undefined || raw === null || String(raw).trim() === '') return '—';
+  const n = Number(String(raw).replace(/,/g, ''));
+  if (!Number.isFinite(n) || n < 0) return '—';
+  const code = record.purchaseCurrency === 'USD' ? 'USD' : 'INR';
+  return new Intl.NumberFormat(code === 'USD' ? 'en-US' : 'en-IN', {
+    style: 'currency', currency: code, maximumFractionDigits: 2
+  }).format(n);
+}
 
 function escapeHtml(str) {
   return String(str).replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
