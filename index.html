@@ -12,7 +12,7 @@
 <style>
   :root {
     --background: #FFF8EC;
-    --surface: #FFFFFF;
+    --surface: #FBEFDB;
     --surface-raised: #F5E6C8;
     --brass: #E8823D;
     --maroon: #C62828;
@@ -38,6 +38,11 @@
   }
   .header-title-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 10px; }
   h1 { font-size: 22px; margin: 0; font-weight: 700; min-width: 0; }
+  #settings-btn {
+    border: 1px solid var(--groove); border-radius: 10px; background: var(--surface);
+    color: var(--text-muted); padding: 9px 11px; min-height: 40px; cursor: pointer;
+    font-size: 18px; line-height: 1;
+  }
   #refresh-btn {
     display: inline-flex; align-items: center; justify-content: center; gap: 6px;
     border: 1px solid var(--groove); border-radius: 10px;
@@ -66,10 +71,10 @@
     background: var(--surface); color: var(--text); font-size: 14px; margin-bottom: 4px;
   }
 
-  .tabs { display: flex; gap: 6px; padding: 0 16px 10px; flex-shrink: 0; }
+  .tabs { display: flex; gap: 5px; padding: 0 16px 10px; flex-shrink: 0; }
   .tab {
-    flex: 1; text-align: center; padding: 9px 0; border-radius: 8px;
-    font-size: 14px; font-weight: 600; color: var(--text-muted);
+    flex: 1; text-align: center; min-width: 0; padding: 9px 0; border-radius: 8px;
+    font-size: 13px; font-weight: 600; color: var(--text-muted);
     background: var(--surface);
   }
   .tab.active { background: var(--brass); color: white; }
@@ -173,7 +178,7 @@
   .track-row { padding: 7px 0; border-bottom: 1px solid var(--groove); font-size: 13px; }
   .track-warning { color: var(--maroon); font-size: 11px; font-weight: 600; margin-top: 2px; }
 
-  #summary-view { height: 100%; overflow-y: auto; -webkit-overflow-scrolling: touch; padding: 4px 16px 30px; display: none; }
+  #summary-view, #value-view { height: 100%; overflow-y: auto; -webkit-overflow-scrolling: touch; padding: 4px 16px 30px; display: none; }
   .summary-total { font-size: 13px; color: var(--text-muted); margin-bottom: 18px; }
   .summary-section-title { font-size: 15px; font-weight: 700; margin-bottom: 10px; }
   .cat-row { margin-bottom: 12px; }
@@ -187,6 +192,45 @@
   .purchase-summary > div { flex: 1; min-width: 135px; background: var(--surface); border-radius: 10px; padding: 12px; }
   .purchase-sum { font-size: 20px; font-weight: 700; margin-top: 4px; }
   .purchase-note { color: var(--text-muted); font-size: 11px; margin-bottom: 22px; }
+
+
+  /* Calmer dashboard: one clear total, secondary details, optional category breakdown. */
+  #summary-view, #value-view { padding: 12px 16px calc(45px + env(safe-area-inset-bottom)); }
+  .summary-hero { background: var(--surface); border: 1px solid var(--groove); border-radius: 18px; padding: 20px; margin-bottom: 14px; }
+  .summary-eyebrow { font-size: 12px; color: var(--text-muted); font-weight: 600; }
+  .summary-hero-value { font-size: clamp(26px, 7vw, 35px); font-weight: 750; letter-spacing: -0.8px; margin: 7px 0; line-height: 1.14; overflow-wrap: anywhere; }
+  .summary-hero-secondary { font-size: 15px; color: var(--text-muted); font-weight: 500; }
+  .summary-card { background: var(--surface); border: 1px solid var(--groove); border-radius: 15px; padding: 16px; margin: 12px 0; }
+  .summary-card-title { font-size: 15px; font-weight: 700; margin-bottom: 11px; }
+  .summary-row { display: flex; gap: 12px; justify-content: space-between; align-items: baseline; padding: 8px 0; border-bottom: 1px solid var(--groove); font-size: 13px; }
+  .summary-row:last-child { border-bottom: none; }
+  .summary-row span:first-child { color: var(--text-muted); }
+  .summary-row strong { font-size: 15px; text-align: right; font-variant-numeric: tabular-nums; }
+  .summary-tiny { color: var(--text-muted); font-size: 12px; line-height: 1.45; }
+  .summary-count-strip { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; margin-bottom: 15px; }
+  .summary-count { background: var(--surface); border: 1px solid var(--groove); border-radius: 12px; padding: 12px 8px; text-align: center; }
+  .summary-count strong { display: block; font-size: 21px; }
+  .summary-count span { color: var(--text-muted); font-size: 11px; }
+  .summary-disclosure { background: var(--surface); border: 1px solid var(--groove); border-radius: 15px; padding: 15px; margin: 12px 0; }
+  .summary-disclosure summary { font-weight: 700; font-size: 15px; cursor: pointer; }
+  .summary-disclosure .cat-row:first-of-type { margin-top: 20px; }
+  .summary-fx { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-top: 12px; }
+  .summary-fx input { width: 74px; border: 1px solid var(--groove); border-radius: 9px; padding: 8px; font-size: 13px; background: var(--surface); color: var(--text); }
+  .summary-fx button { border: 1px solid var(--groove); border-radius: 9px; padding: 8px 12px; background: var(--surface-raised); color: var(--text); font-weight: 600; }
+  #settings-overlay {
+    display: none; position: fixed; inset: 0; z-index: 80;
+    background: rgba(58,38,21,.38); align-items: center; justify-content: center; padding: 20px;
+  }
+  .settings-panel { width: min(100%, 420px); border-radius: 18px; background: var(--background);
+    padding: 22px; box-shadow: 0 12px 36px rgba(58,38,21,.22); }
+  .settings-panel label { display: block; margin: 14px 0 7px; font-size: 13px; color: var(--text-muted); }
+  .settings-panel input { width: 100%; border: 1px solid var(--groove); border-radius: 9px;
+    padding: 11px; background: var(--surface); color: var(--text); font-size: 16px; }
+  .settings-panel button { border: 1px solid var(--groove); border-radius: 9px;
+    padding: 9px 15px; background: var(--surface-raised); color: var(--text); cursor: pointer; }
+  .sheet-price-card { display: flex; flex-direction: column; gap: 6px; padding: 13px; background: var(--surface); border: 1px solid var(--groove); border-radius: 12px; margin: 12px 0; }
+  .sheet-price-card .field-value { font-size: 20px; font-weight: 700; }
+  @media (min-width: 620px) { #summary-view, #value-view { max-width: 680px; margin: auto; width: 100%; } }
 
   #status-bar {
     font-size: 11px; color: var(--text-muted); text-align: center; padding: 6px 0 2px;
@@ -203,6 +247,7 @@
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 7v5h-5"/><path d="M4 17v-5h5"/><path d="M5.6 9A7 7 0 0 1 18.1 6.3L20 12M4 12l1.9 5.7A7 7 0 0 0 18.4 15"/></svg>
         <span>Refresh</span>
       </button>
+      <button id="settings-btn" type="button" aria-label="Settings" title="Settings">⚙</button>
     </div>
     <div class="search-row">
       <span>🔍</span>
@@ -222,6 +267,7 @@
     <div class="tab" data-view="list">List</div>
     <div class="tab active" data-view="coverflow">Cover Flow</div>
     <div class="tab" data-view="summary">Summary</div>
+    <div class="tab" data-view="value">Value</div>
   </div>
 
   <main>
@@ -231,10 +277,24 @@
       <div class="cf-caption" id="cf-caption"></div>
     </div>
     <div id="summary-view"></div>
+    <div id="value-view"></div>
   </main>
 
   <div id="status-bar">
     <span id="status-text">Loading…</span>
+  </div>
+</div>
+
+<div id="settings-overlay" role="dialog" aria-modal="true" aria-label="Settings">
+  <div class="settings-panel">
+    <div style="display:flex;align-items:center;justify-content:space-between;gap:12px">
+      <strong style="font-size:20px">Settings</strong>
+      <button id="settings-close" type="button">Close</button>
+    </div>
+    <label for="settings-fx-rate">Currency conversion — INR per $1</label>
+    <input type="number" id="settings-fx-rate" min="0.01" step="0.01" inputmode="decimal" />
+    <div class="summary-tiny" style="margin:10px 0 18px">Changes approximate display amounts only, not purchase prices or online quotes. This setting is stored on this phone.</div>
+    <button id="settings-save" type="button">Save conversion rate</button>
   </div>
 </div>
 
@@ -260,6 +320,36 @@ function numericPrice(r) {
   if (raw === undefined || raw === null || String(raw).trim() === '') return null;
   const amount = Number(String(raw).replace(/,/g, ''));
   return Number.isFinite(amount) && amount >= 0 ? Math.ceil(amount) : null;
+}
+
+function numericCurrentValue(r) {
+  const raw = r.estimatedValue;
+  if (raw === undefined || raw === null || String(raw).trim() === '') return null;
+  const amount = Number(String(raw).replace(/,/g, ''));
+  return Number.isFinite(amount) && amount >= 0 ? amount : null;
+}
+function onlineAskComparison(r) {
+  if (r.marketPriceStatus !== 'Listed') return '';
+  const paid = numericPrice(r), ask = numericCurrentValue(r);
+  if (paid === null || ask === null || paid <= 0) return '';
+  const paidINR = paid * (r.purchaseCurrency === 'USD' ? inrPerUSD : 1);
+  const askINR = ask * (currentValueCurrency(r) === 'USD' ? inrPerUSD : 1);
+  const change = askINR - paidINR;
+  const percent = Math.abs(change / paidINR * 100);
+  if (percent < 1) return 'About the same asking price as you paid';
+  return currencyAmount(Math.abs(change), 'INR') + (change > 0 ? ' above' : ' below') + ' your purchase cost (' + Math.round(percent) + '%)';
+}
+
+function currentValueCurrency(r) {
+  return (r.currentValueCurrency || r.purchaseCurrency) === 'USD' ? 'USD' : 'INR';
+}
+function currentValueText(r) {
+  const amount = numericCurrentValue(r);
+  if (amount === null) return 'Not entered';
+  const code = currentValueCurrency(r);
+  return code === 'USD'
+    ? currencyAmount(amount, 'USD') + ' / ' + currencyAmount(amount * inrPerUSD, 'INR')
+    : currencyAmount(amount, 'INR') + ' / ' + currencyAmount(amount / inrPerUSD, 'USD');
 }
 
 
@@ -327,11 +417,44 @@ function coverHtml(record, cls, placeholderCls) {
 function render() {
   if (currentView === 'list') renderList();
   else if (currentView === 'coverflow') renderCoverFlow();
-  else renderSummary();
+  else if (currentView === 'summary') renderSummary();
+  else renderCollectionValue();
 }
 
 function renderSummary() {
   const container = document.getElementById('summary-view');
+  if (!records.length) {
+    container.innerHTML = '<div class="empty-state">No collection records yet.</div>';
+    return;
+  }
+  const counts = {};
+  for (const r of records) {
+    const key = r.category || 'Uncategorized';
+    counts[key] = (counts[key] || 0) + 1;
+  }
+  const sorted = Object.entries(counts).sort((a, b) => b[1] - a[1]);
+  const maximum = Math.max(1, ...sorted.map(row => row[1]));
+  const newCount = records.filter(r => r.ownership === 'New').length;
+  const usedCount = records.filter(r => r.ownership === 'Pre-Owned').length;
+  container.innerHTML = `
+    <div class="summary-total">${records.length} records total</div>
+    <div class="summary-count-strip">
+      <div class="summary-count"><strong>${newCount}</strong><span>New</span></div>
+      <div class="summary-count"><strong>${usedCount}</strong><span>Pre-owned</span></div>
+      <div class="summary-count"><strong>${sorted.length}</strong><span>Categories</span></div>
+    </div>
+    <div class="summary-section-title">By Category</div>
+    ${sorted.map(([category, count]) => `
+      <div class="cat-row">
+        <div class="cat-row-top"><span>${escapeHtml(category)}</span><span>${count}</span></div>
+        <div class="cat-bar-track"><div class="cat-bar-fill" style="width:${count / maximum * 100}%"></div></div>
+      </div>
+    `).join('')}
+  `;
+}
+
+function renderCollectionValue() {
+  const container = document.getElementById('value-view');
   if (records.length === 0) {
     container.innerHTML = '<div class="empty-state">Add some records to see a breakdown here.</div>';
     return;
@@ -358,44 +481,55 @@ function renderSummary() {
     style: 'currency', currency, maximumFractionDigits: 0, minimumFractionDigits: 0
   }).format(priceTotals[currency]);
 
+  const listedRecords = records.filter(r => r.marketPriceStatus === 'Listed' && numericCurrentValue(r) !== null);
+  const fallbackRecords = records.filter(r =>
+    !(r.marketPriceStatus === 'Listed' && numericCurrentValue(r) !== null) && numericPrice(r) !== null);
+  const missingCount = records.length - listedRecords.length - fallbackRecords.length;
+  const listedTotalINR = listedRecords.reduce((total, r) => total + numericCurrentValue(r) *
+    (currentValueCurrency(r) === 'USD' ? inrPerUSD : 1), 0);
+  const fallbackTotalINR = fallbackRecords.reduce((total, r) => total + numericPrice(r) *
+    (r.purchaseCurrency === 'USD' ? inrPerUSD : 1), 0);
+  const indicativeTotalINR = listedTotalINR + fallbackTotalINR;
+  const comparableOnline = listedRecords.filter(r => numericPrice(r) !== null);
+  const comparedDifferenceINR = comparableOnline.reduce((total, r) => total +
+    numericCurrentValue(r) * (currentValueCurrency(r) === 'USD' ? inrPerUSD : 1) -
+    numericPrice(r) * (r.purchaseCurrency === 'USD' ? inrPerUSD : 1), 0);
+
   const newCount = records.filter(r => r.ownership === 'New').length;
   const preOwnedCount = records.filter(r => r.ownership === 'Pre-Owned').length;
 
+  const combinedINR = priceTotals.INR + priceTotals.USD * inrPerUSD;
+  const combinedUSD = combinedINR / inrPerUSD;
   container.innerHTML = `
-    <div class="summary-total">${records.length} record${records.length === 1 ? '' : 's'} total</div>
-    <div class="summary-section-title">Purchase Cost</div>
-    <div class="purchase-summary">
-      <div><span class="field-label">INR (${priceCounts.INR} records)</span><div class="purchase-sum">${formatTotal('INR')}</div></div>
-      <div><span class="field-label">USD (${priceCounts.USD} records)</span><div class="purchase-sum">${formatTotal('USD')}</div></div>
+    <div class="summary-hero">
+      <div class="summary-eyebrow">TOTAL COLLECTION PURCHASE COST</div>
+      <div class="summary-hero-value">${currencyAmount(combinedINR, 'INR')}</div>
+      <div class="summary-hero-secondary">${currencyAmount(combinedUSD, 'USD')} · approximate conversion</div>
     </div>
-    <div class="purchase-summary">
-      <div><span class="field-label">Approx. combined (INR)</span><div class="purchase-sum">${currencyAmount(priceTotals.INR + priceTotals.USD * inrPerUSD, 'INR')}</div></div>
-      <div><span class="field-label">Approx. combined (USD)</span><div class="purchase-sum">${currencyAmount(priceTotals.USD + priceTotals.INR / inrPerUSD, 'USD')}</div></div>
+    <div class="summary-count-strip">
+      <div class="summary-count"><strong>${records.length}</strong><span>Records</span></div>
+      <div class="summary-count"><strong>${newCount}</strong><span>New</span></div>
+      <div class="summary-count"><strong>${preOwnedCount}</strong><span>Pre-owned</span></div>
     </div>
-    <div class="purchase-note">Approximate rate: ₹${inrPerUSD} per $1 · <label for="fx-rate-input">Change rate:</label>
-      <input id="fx-rate-input" type="number" min="1" step="0.01" value="${inrPerUSD}" style="width:82px; padding:5px; border:1px solid var(--groove); border-radius:6px; font-size:13px;" aria-label="INR per USD">
-      <button type="button" id="fx-rate-save" style="border:1px solid var(--groove);border-radius:6px;background:var(--surface);padding:5px 9px;color:var(--text);">Apply</button>
-      <div>Conversions are estimates. Original purchase prices and currencies are unchanged.</div>
+    <div class="summary-card">
+      <div class="summary-card-title">Your purchase breakdown</div>
+      <div class="summary-row"><span>INR · ${priceCounts.INR} records</span><strong>${formatTotal('INR')}</strong></div>
+      <div class="summary-row"><span>USD · ${priceCounts.USD} records</span><strong>${formatTotal('USD')}</strong></div>
     </div>
-    <div class="summary-section-title">By Category</div>
-    ${sorted.map(([cat, count]) => `
-      <div class="cat-row">
-        <div class="cat-row-top"><span>${escapeHtml(cat)}</span><span>${count}</span></div>
-        <div class="cat-bar-track"><div class="cat-bar-fill" style="width:${(count / maxCount) * 100}%"></div></div>
-      </div>
-    `).join('')}
-    <div class="stat-blocks">
-      <div><div class="stat-value">${newCount}</div><div class="stat-label">New</div></div>
-      <div><div class="stat-value">${preOwnedCount}</div><div class="stat-label">Pre-Owned</div></div>
+      <div class="summary-tiny" style="margin-top:8px">The exchange rate changes the display only, not what you paid.</div>
+    </div>
+    <div class="summary-card">
+      <div class="summary-card-title">Indicative collection value</div>
+      <div class="summary-row"><span>Combined reference value</span><strong>${currencyAmount(indicativeTotalINR, 'INR')}</strong></div>
+      <div class="summary-row"><span>Approx. USD</span><strong>${currencyAmount(indicativeTotalINR / inrPerUSD, 'USD')}</strong></div>
+      <div class="summary-row"><span>Difference from purchase</span><strong>${comparedDifferenceINR >= 0 ? '+' : ''}${currencyAmount(comparedDifferenceINR, 'INR')} (${combinedINR > 0 ? (comparedDifferenceINR / combinedINR * 100).toFixed(1) : '0.0'}%)</strong></div>
+      <div class="summary-row"><span>Online asking prices · ${listedRecords.length} records</span><strong>${currencyAmount(listedTotalINR, 'INR')}</strong></div>
+      <div class="summary-row"><span>Purchase-price fallback · ${fallbackRecords.length} records</span><strong>${currencyAmount(fallbackTotalINR, 'INR')}</strong></div>
+      ${missingCount ? `<div class="summary-tiny">${missingCount} records have neither an online price nor a purchase price.</div>` : ''}
+      <div class="summary-tiny" style="margin-top:10px">Online figures use lowest active Discogs asking prices (excluding shipping). Other records use what you paid as a reference, not a verified current market quote. Fallbacks contribute zero change.</div>
     </div>
   `;
-  document.getElementById('fx-rate-save')?.addEventListener('click', () => {
-    const newRate = Number(document.getElementById('fx-rate-input').value);
-    if (!Number.isFinite(newRate) || newRate <= 0) { alert('Enter a rate greater than zero.'); return; }
-    inrPerUSD = newRate;
-    localStorage.setItem('vinyl-fx-rate', String(newRate));
-    renderSummary();
-  });
+
 }
 
 function renderList() {
@@ -496,6 +630,16 @@ function openDetail(id) {
     ${coverHtml(r, 'sheet-cover', 'sheet-cover')}
     <div class="sheet-title">${escapeHtml(r.albumTitle || 'Untitled')}</div>
     <div class="sheet-artist">${escapeHtml(r.artist || 'Unknown Artist')}</div>
+    <div class="sheet-price-card"><div class="field-label">YOU PAID</div><div class="field-value">${escapeHtml(purchasePrice(r))}</div></div>
+    ${r.marketPriceStatus === 'Listed' && numericCurrentValue(r) !== null ? `<div class="sheet-price-card">
+      <div class="field-label">LOWEST ONLINE ASKING PRICE · ${Number(r.marketListingsCount || 0)} listed</div>
+      <div class="field-value">${escapeHtml(currentValueText(r))}</div>
+      <div class="field-label">Discogs · checked ${escapeHtml(r.marketPriceCheckedAt ? new Date(r.marketPriceCheckedAt).toLocaleDateString() : 'unknown')}</div>
+      <div class="field-label">${escapeHtml(onlineAskComparison(r))}</div>
+      ${r.marketPriceSource && /^https:\/\/www\.discogs\.com\/sell\/release\/\d+$/.test(r.marketPriceSource) ? `<a href="${escapeHtml(r.marketPriceSource)}" target="_blank" rel="noopener noreferrer">View current listing</a>` : ''}
+    </div>` : `<div class="sheet-price-card"><div class="field-label">INDICATIVE PRICE · PURCHASE-PRICE FALLBACK</div>
+      <div class="field-value">${escapeHtml(numericPrice(r) !== null ? purchasePrice(r) : 'No price available')}</div>
+      <div class="field-label">No verified online quote. This is your purchase cost, not a current listing.</div></div>`}
     <div class="sheet-fields">
       <div><div class="field-label">Music Director</div><div class="field-value">${escapeHtml(r.musicDirector || '—')}</div></div>
       <div><div class="field-label">Year</div><div class="field-value">${escapeHtml(r.year || '—')}</div></div>
@@ -503,7 +647,6 @@ function openDetail(id) {
       <div><div class="field-label">Catalog Number</div><div class="field-value">${escapeHtml(r.catalogNumber || '—')}</div></div>
       <div><div class="field-label">Condition</div><div class="field-value">${escapeHtml(r.ownership || '—')}</div></div>
       <div><div class="field-label">Category</div><div class="field-value">${escapeHtml(r.category || '—')}</div></div>
-      <div style="grid-column:1/-1"><div class="field-label">Purchase Price</div><div class="field-value">${escapeHtml(purchasePrice(r))}</div></div>
     </div>
     <div class="tracklist">
       <div class="field-label" style="margin-bottom:6px;">TRACKLIST</div>
@@ -535,6 +678,7 @@ document.querySelectorAll('.tab').forEach(tab => {
     document.getElementById('list-view').style.display = currentView === 'list' ? 'block' : 'none';
     document.getElementById('coverflow-view').style.display = currentView === 'coverflow' ? 'flex' : 'none';
     document.getElementById('summary-view').style.display = currentView === 'summary' ? 'block' : 'none';
+    document.getElementById('value-view').style.display = currentView === 'value' ? 'block' : 'none';
     render();
   });
 });
@@ -543,6 +687,24 @@ document.getElementById('search-input').addEventListener('input', render);
 document.getElementById('category-select').addEventListener('change', render);
 document.getElementById('ownership-select').addEventListener('change', render);
 document.getElementById('refresh-btn').addEventListener('click', loadData);
+document.getElementById('settings-btn').addEventListener('click', () => {
+  document.getElementById('settings-fx-rate').value = String(inrPerUSD);
+  document.getElementById('settings-overlay').style.display = 'flex';
+});
+function closeSettings() { document.getElementById('settings-overlay').style.display = 'none'; }
+document.getElementById('settings-close').addEventListener('click', closeSettings);
+document.getElementById('settings-overlay').addEventListener('click', e => {
+  if (e.target.id === 'settings-overlay') closeSettings();
+});
+document.getElementById('settings-save').addEventListener('click', () => {
+  const rate = Number(document.getElementById('settings-fx-rate').value);
+  if (!Number.isFinite(rate) || rate <= 0) { alert('Enter a valid rate greater than zero.'); return; }
+  inrPerUSD = rate;
+  localStorage.setItem('vinyl-fx-rate', String(rate));
+  closeSettings();
+  render();
+});
+
 document.getElementById('detail-overlay').addEventListener('click', e => {
   if (e.target.id === 'detail-overlay') closeDetail();
 });
