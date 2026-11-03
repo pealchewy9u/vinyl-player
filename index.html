@@ -237,16 +237,15 @@
     flex-shrink: 0;
   }
 
-  /* Compact pricing, keeping tracklists near the top of the detail sheet. */
-  .detail-price-strip { display:flex; align-items:flex-start; gap:12px; justify-content:space-between;
-    border:1px solid var(--groove); border-radius:11px; background:var(--surface-raised);
-    padding:10px 12px; margin:14px 0 8px; }
-  .detail-price-part { flex:1; min-width:0; }
-  .detail-price-part + .detail-price-part { border-left:1px solid var(--groove); padding-left:12px; }
-  .detail-price-label { font-size:10px; color:var(--text-muted); font-weight:650; margin-bottom:4px; }
-  .detail-price-amount { font-size:15px; font-weight:700; line-height:1.3; overflow-wrap:anywhere; }
-  .detail-price-note { font-size:10px; color:var(--text-muted); margin-top:3px; }
-  .detail-price-link { font-size:11px; display:inline-block; margin:0 0 5px 2px; color:var(--brass); }
+  /* Prices are ordinary record metadata, not a highlighted card. */
+  .detail-price-strip { display:grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap:10px;
+    padding:0; margin:13px 0 4px; background:transparent; border:0; }
+  .detail-price-part { min-width:0; }
+  .detail-price-part + .detail-price-part { border:0; padding:0; }
+  .detail-price-label { font-size:11px; color:var(--text-muted); font-weight:400; margin-bottom:2px; }
+  .detail-price-amount { font-size:13px; font-weight:500; line-height:1.4; overflow-wrap:anywhere; }
+  .detail-price-note { font-size:10px; color:var(--text-muted); margin-top:2px; }
+  .detail-price-link { font-size:11px; display:inline-block; margin:2px 0 1px; color:var(--brass); }
   .value-top-pair { display:grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap:10px; margin-bottom:12px; }
   .value-tile { background:var(--surface-raised); border:1px solid var(--groove); border-radius:15px; padding:14px 12px; min-width:0; }
   .value-tile-label { font-size:11px; font-weight:600; color:var(--text-muted); margin-bottom:9px; }
@@ -258,7 +257,7 @@
   .value-mini-info { border-top:1px solid var(--groove); margin-top:6px; padding-top:10px; font-size:12px; color:var(--text-muted); line-height:1.65; }
   .value-warning { padding:10px 12px; border:1px solid var(--groove); background:var(--surface-raised);
     border-radius:10px; font-size:12px; line-height:1.5; margin-bottom:12px; }
-  @media (max-width:360px) { .value-tile { padding:11px 9px; } .detail-price-strip { gap:8px; padding:9px; } .detail-price-part + .detail-price-part { padding-left:8px; } }
+  @media (max-width:360px) { .value-tile { padding:11px 9px; } .detail-price-strip { gap:8px; } }
 </style>
 </head>
 <body>
@@ -518,7 +517,7 @@ function renderCollectionValue() {
     ${unsyncedNote}
     <div class="value-top-pair">
       <div class="value-tile">
-        <div class="value-tile-label">YOU PAID</div>
+        <div class="value-tile-label">Purchase price</div>
         <div class="value-tile-amount">${currencyAmount(investmentINR, 'INR')}</div>
         <div class="value-tile-sub">${currencyAmount(investmentINR / inrPerUSD, 'USD')}</div>
       </div>
@@ -644,13 +643,13 @@ function openDetail(id) {
     <div class="sheet-artist">${escapeHtml(r.artist || 'Unknown Artist')}</div>
     <div class="detail-price-strip">
       <div class="detail-price-part">
-        <div class="detail-price-label">YOU PAID</div>
+        <div class="detail-price-label">Purchase price</div>
         <div class="detail-price-amount">${escapeHtml(purchasePrice(r))}</div>
       </div>
       <div class="detail-price-part">
-        <div class="detail-price-label">${r.marketPriceStatus === 'Listed' && numericCurrentValue(r) !== null ? 'ONLINE ASK' : 'REFERENCE'}</div>
+        <div class="detail-price-label">${r.marketPriceStatus === 'Listed' && numericCurrentValue(r) !== null ? 'Current asking price' : 'Reference price'}</div>
         <div class="detail-price-amount">${escapeHtml(r.marketPriceStatus === 'Listed' && numericCurrentValue(r) !== null ? currentValueText(r) : numericPrice(r) !== null ? purchasePrice(r) : '—')}</div>
-        <div class="detail-price-note">${r.marketPriceStatus === 'Listed' && numericCurrentValue(r) !== null ? 'Discogs listing' : 'Paid-price fallback'}</div>
+        <div class="detail-price-note">${r.marketPriceStatus === 'Listed' && numericCurrentValue(r) !== null ? 'Discogs' : 'Paid-price fallback'}</div>
       </div>
     </div>
     ${r.marketPriceStatus === 'Listed' && numericCurrentValue(r) !== null && r.marketPriceSource && /^https:\/\/www\.discogs\.com\/sell\/release\/\d+$/.test(r.marketPriceSource) ? `<a class="detail-price-link" href="${escapeHtml(r.marketPriceSource)}" target="_blank" rel="noopener noreferrer">View Discogs listing</a>` : ''}
