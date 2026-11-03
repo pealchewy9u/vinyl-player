@@ -246,6 +246,22 @@
 const DATA_URL = './collection.json';
 let records = [];
 let currentView = 'coverflow';
+// Approximate conversion is display-only, separate from original purchase amounts.
+const DEFAULT_INR_PER_USD = 95; // Approx. Nov 3, 2026; manually adjustable.
+let inrPerUSD = Number(localStorage.getItem('vinyl-fx-rate')) || DEFAULT_INR_PER_USD;
+if (!(inrPerUSD > 0)) inrPerUSD = DEFAULT_INR_PER_USD;
+function currencyAmount(amount, code) {
+  return new Intl.NumberFormat(code === 'USD' ? 'en-US' : 'en-IN', {
+    style: 'currency', currency: code, maximumFractionDigits: 0, minimumFractionDigits: 0
+  }).format(amount);
+}
+function numericPrice(r) {
+  const raw = r.pricePaid;
+  if (raw === undefined || raw === null || String(raw).trim() === '') return null;
+  const amount = Number(String(raw).replace(/,/g, ''));
+  return Number.isFinite(amount) && amount >= 0 ? Math.ceil(amount) : null;
+}
+
 
 async function loadData() {
   document.getElementById('status-text').textContent = 'Loading…';
@@ -332,15 +348,14 @@ function renderSummary() {
   const priceTotals = { INR: 0, USD: 0 };
   const priceCounts = { INR: 0, USD: 0 };
   records.forEach(r => {
-    if (r.pricePaid === undefined || r.pricePaid === null || String(r.pricePaid).trim() === '') return;
-    const amount = Number(String(r.pricePaid).replace(/,/g, ''));
-    if (!Number.isFinite(amount) || amount < 0) return;
+    const amount = numericPrice(r);
+    if (amount === null) return;
     const currency = r.purchaseCurrency === 'USD' ? 'USD' : 'INR';
     priceTotals[currency] += amount;
     priceCounts[currency]++;
   });
   const formatTotal = (currency) => new Intl.NumberFormat(currency === 'USD' ? 'en-US' : 'en-IN', {
-    style: 'currency', currency, maximumFractionDigits: 2
+    style: 'currency', currency, maximumFractionDigits: 0, minimumFractionDigits: 0
   }).format(priceTotals[currency]);
 
   const newCount = records.filter(r => r.ownership === 'New').length;
@@ -353,7 +368,15 @@ function renderSummary() {
       <div><span class="field-label">INR (${priceCounts.INR} records)</span><div class="purchase-sum">${formatTotal('INR')}</div></div>
       <div><span class="field-label">USD (${priceCounts.USD} records)</span><div class="purchase-sum">${formatTotal('USD')}</div></div>
     </div>
-    <div class="purchase-note">Purchase costs shown separately; no exchange-rate conversion.</div>
+    <div class="purchase-summary">
+      <div><span class="field-label">Approx. combined (INR)</span><div class="purchase-sum">${currencyAmount(priceTotals.INR + priceTotals.USD * inrPerUSD, 'INR')}</div></div>
+      <div><span class="field-label">Approx. combined (USD)</span><div class="purchase-sum">${currencyAmount(priceTotals.USD + priceTotals.INR / inrPerUSD, 'USD')}</div></div>
+    </div>
+    <div class="purchase-note">Approximate rate: ₹${inrPerUSD} per $1 · <label for="fx-rate-input">Change rate:</label>
+      <input id="fx-rate-input" type="number" min="1" step="0.01" value="${inrPerUSD}" style="width:82px; padding:5px; border:1px solid var(--groove); border-radius:6px; font-size:13px;" aria-label="INR per USD">
+      <button type="button" id="fx-rate-save" style="border:1px solid var(--groove);border-radius:6px;background:var(--surface);padding:5px 9px;color:var(--text);">Apply</button>
+      <div>Conversions are estimates. Original purchase prices and currencies are unchanged.</div>
+    </div>
     <div class="summary-section-title">By Category</div>
     ${sorted.map(([cat, count]) => `
       <div class="cat-row">
@@ -366,6 +389,13 @@ function renderSummary() {
       <div><div class="stat-value">${preOwnedCount}</div><div class="stat-label">Pre-Owned</div></div>
     </div>
   `;
+  document.getElementById('fx-rate-save')?.addEventListener('click', () => {
+    const newRate = Number(document.getElementById('fx-rate-input').value);
+    if (!Number.isFinite(newRate) || newRate <= 0) { alert('Enter a rate greater than zero.'); return; }
+    inrPerUSD = newRate;
+    localStorage.setItem('vinyl-fx-rate', String(newRate));
+    renderSummary();
+  });
 }
 
 function renderList() {
@@ -473,7 +503,7 @@ function openDetail(id) {
       <div><div class="field-label">Catalog Number</div><div class="field-value">${escapeHtml(r.catalogNumber || '—')}</div></div>
       <div><div class="field-label">Condition</div><div class="field-value">${escapeHtml(r.ownership || '—')}</div></div>
       <div><div class="field-label">Category</div><div class="field-value">${escapeHtml(r.category || '—')}</div></div>
-      <div><div class="field-label">Purchase Price</div><div class="field-value">${escapeHtml(purchasePrice(r))}</div></div>
+      <div style="grid-column:1/-1"><div class="field-label">Purchase Price</div><div class="field-value">${escapeHtml(purchasePrice(r))}</div></div>
     </div>
     <div class="tracklist">
       <div class="field-label" style="margin-bottom:6px;">TRACKLIST</div>
@@ -485,14 +515,12 @@ function openDetail(id) {
 function closeDetail() { document.getElementById('detail-overlay').style.display = 'none'; }
 
 function purchasePrice(record) {
-  const raw = record.pricePaid;
-  if (raw === undefined || raw === null || String(raw).trim() === '') return '—';
-  const n = Number(String(raw).replace(/,/g, ''));
-  if (!Number.isFinite(n) || n < 0) return '—';
+  const amount = numericPrice(record);
+  if (amount === null) return '—';
   const code = record.purchaseCurrency === 'USD' ? 'USD' : 'INR';
-  return new Intl.NumberFormat(code === 'USD' ? 'en-US' : 'en-IN', {
-    style: 'currency', currency: code, maximumFractionDigits: 2
-  }).format(n);
+  return code === 'USD'
+    ? currencyAmount(amount, 'USD') + ' / ' + currencyAmount(amount * inrPerUSD, 'INR')
+    : currencyAmount(amount, 'INR') + ' / ' + currencyAmount(amount / inrPerUSD, 'USD');
 }
 
 function escapeHtml(str) {
