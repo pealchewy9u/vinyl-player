@@ -258,6 +258,26 @@
   .value-warning { padding:10px 12px; border:1px solid var(--groove); background:var(--surface-raised);
     border-radius:10px; font-size:12px; line-height:1.5; margin-bottom:12px; }
   @media (max-width:360px) { .value-tile { padding:11px 9px; } .detail-price-strip { gap:8px; } }
+
+  /* Listening history: compact, warm and visually secondary to the record art. */
+  .cf-caption { height: 135px; padding-top: 8px; }
+  .listen-actions { margin-top:8px; display:flex; align-items:center; justify-content:center; gap:9px; font-size:12px; }
+  .played-btn { background:var(--surface-raised); color:var(--text); border:1px solid var(--groove);
+    border-radius:20px; padding:7px 14px; font-size:12px; font-weight:650; cursor:pointer; min-height:34px; }
+  .play-count { color:var(--text-muted); }
+  #plays-view { display:none; height:100%; overflow-y:auto; padding:12px 16px 28px; }
+  .play-controls { display:flex; gap:7px; flex-wrap:wrap; margin:14px 0; }
+  .play-controls button, .plays-button { background:var(--surface-raised); border:1px solid var(--groove);
+    border-radius:9px; padding:9px 12px; color:var(--text); font:inherit; font-size:13px; cursor:pointer; }
+  .play-controls button.selected { background:var(--brass); color:white; }
+  .play-row { border-bottom:1px solid var(--groove); padding:10px 0; display:flex; align-items:center; justify-content:space-between; gap:12px; }
+  .play-row-title { font-weight:600; font-size:14px; }
+  .play-row-note { font-size:11px; color:var(--text-muted); margin-top:2px; }
+  .play-summary { background:var(--surface-raised); padding:12px; border-radius:12px; font-size:14px; }
+  .listen-settings { border-top:1px solid var(--groove); margin-top:18px; padding-top:9px; }
+  .listen-settings input[type=checkbox] { width:auto; }
+  .sync-note { font-size:12px; color:var(--text-muted); line-height:1.5; margin-top:9px; }
+  .sync-note.error { color:var(--maroon); }
 </style>
 </head>
 <body>
@@ -290,6 +310,7 @@
     <div class="tab active" data-view="coverflow">Cover Flow</div>
     <div class="tab" data-view="summary">Summary</div>
     <div class="tab" data-view="value">Value</div>
+    <div class="tab" data-view="plays">Plays</div>
   </div>
 
   <main>
@@ -300,6 +321,7 @@
     </div>
     <div id="summary-view"></div>
     <div id="value-view"></div>
+    <div id="plays-view"></div>
   </main>
 
   <div id="status-bar">
@@ -317,6 +339,18 @@
     <input type="number" id="settings-fx-rate" min="0.01" step="0.01" inputmode="decimal" />
     <div class="summary-tiny" style="margin:10px 0 18px">Changes approximate display amounts only, not purchase prices or online quotes. This setting is stored on this phone.</div>
     <button id="settings-save" type="button">Save conversion rate</button>
+    <div class="listen-settings">
+      <strong>Listening history · GitHub</strong>
+      <p class="sync-note">Use a separate PRIVATE GitHub repository. The access token is entered on this device; it is never included in your published site files.</p>
+      <label for="listen-gh-owner">GitHub username / owner</label><input id="listen-gh-owner" autocomplete="off" placeholder="your-username" />
+      <label for="listen-gh-repo">Private repository name</label><input id="listen-gh-repo" autocomplete="off" placeholder="vinyl-listening-history" />
+      <label for="listen-gh-token">Fine-grained GitHub token</label><input id="listen-gh-token" type="password" autocomplete="off" placeholder="github_pat_..." />
+      <label><input id="listen-remember-token" type="checkbox" /> Remember token on this iPhone (convenient, less secure)</label>
+      <p class="sync-note">If unchecked, the token lasts only until this app session closes. A remembered token may be exposed if the device or website storage is compromised. Restrict it to this one repository and Contents read/write.</p>
+      <div class="play-controls"><button id="listen-save-settings" type="button">Save &amp; sync</button><button id="listen-sync" type="button">Sync now</button></div>
+      <div id="listen-sync-state" class="sync-note">Plays are always saved on this iPhone first.</div>
+    </div>
+
   </div>
 </div>
 
@@ -328,6 +362,7 @@
 const DATA_URL = './collection.json';
 let records = [];
 let currentView = 'coverflow';
+let playEvents = []; // The local IndexedDB copy is the offline-first source.
 // Approximate conversion is display-only, separate from original purchase amounts.
 const DEFAULT_INR_PER_USD = 95; // Approx. Nov 3, 2026; manually adjustable.
 let inrPerUSD = Number(localStorage.getItem('vinyl-fx-rate')) || DEFAULT_INR_PER_USD;
@@ -440,6 +475,7 @@ function render() {
   if (currentView === 'list') renderList();
   else if (currentView === 'coverflow') renderCoverFlow();
   else if (currentView === 'summary') renderSummary();
+  else if (currentView === 'plays') renderPlays();
   else renderCollectionValue();
 }
 
@@ -567,6 +603,7 @@ function renderList() {
 
 function renderCoverFlow() {
   const scroll = document.getElementById('cf-scroll');
+  const previousScroll = scroll.scrollLeft;
   const items = filteredRecords();
   scroll.innerHTML = items.map(r => `
     <div class="cf-card" data-id="${r.id}">
@@ -605,15 +642,21 @@ function renderCoverFlow() {
     caption.innerHTML = `
       <div class="cf-title">${escapeHtml(r.albumTitle || 'Untitled')}</div>
       <div class="cf-artist">${escapeHtml(r.artist || 'Unknown Artist')}</div>
+      <div class="listen-actions"><button class="played-btn" type="button" data-play-id="${escapeHtml(r.id)}">＋ Played</button>
+        <span class="play-count">${playEvents.filter(e => e.recordId === r.id).length} plays</span></div>
     `;
   }
   scroll.onscroll = () => requestAnimationFrame(updateTiltAndCaption);
+  document.getElementById('cf-caption').onclick = e => {
+    const button = e.target.closest('button[data-play-id]');
+    if (button) markPlayed(button.dataset.playId);
+  };
   scroll.querySelectorAll('.cf-card').forEach(el => {
     el.addEventListener('click', () => openDetail(el.dataset.id));
   });
   // Initial layout pass -- requestAnimationFrame so getBoundingClientRect reads
   // positions after the browser has actually laid the cards out.
-  requestAnimationFrame(updateTiltAndCaption);
+  requestAnimationFrame(() => { scroll.scrollLeft = previousScroll; updateTiltAndCaption(); });
 }
 
 function openDetail(id) {
@@ -692,6 +735,7 @@ document.querySelectorAll('.tab').forEach(tab => {
     document.getElementById('coverflow-view').style.display = currentView === 'coverflow' ? 'flex' : 'none';
     document.getElementById('summary-view').style.display = currentView === 'summary' ? 'block' : 'none';
     document.getElementById('value-view').style.display = currentView === 'value' ? 'block' : 'none';
+    document.getElementById('plays-view').style.display = currentView === 'plays' ? 'block' : 'none';
     render();
   });
 });
@@ -702,6 +746,7 @@ document.getElementById('ownership-select').addEventListener('change', render);
 document.getElementById('refresh-btn').addEventListener('click', loadData);
 document.getElementById('settings-btn').addEventListener('click', () => {
   document.getElementById('settings-fx-rate').value = String(inrPerUSD);
+  initListeningSettings();
   document.getElementById('settings-overlay').style.display = 'flex';
 });
 function closeSettings() { document.getElementById('settings-overlay').style.display = 'none'; }
@@ -736,6 +781,227 @@ if ('serviceWorker' in navigator) {
 if ('caches' in window) {
   caches.keys().then(keys => keys.forEach(k => caches.delete(k)));
 }
+
+
+// --- Listening events, stored independently of collection.json. ---
+const LISTEN_DB = 'vinyl-listening-v1';
+const LISTEN_FILE = 'listening-history.json';
+let listeningDBPromise;
+let listeningSyncRunning = false;
+let listeningResyncNeeded = false;
+let listenFilter = 'recent';
+let lastPlayedEvent = null;
+const listenSettings = {
+  owner: localStorage.getItem('vinyl-listen-owner') || '',
+  repo: localStorage.getItem('vinyl-listen-repo') || '',
+  token: localStorage.getItem('vinyl-listen-token') || sessionStorage.getItem('vinyl-listen-token') || ''
+};
+function openListeningDB() {
+  if (!listeningDBPromise) listeningDBPromise = new Promise((resolve, reject) => {
+    const request = indexedDB.open(LISTEN_DB, 1);
+    request.onupgradeneeded = () => request.result.createObjectStore('events', {keyPath:'id'});
+    request.onsuccess = () => resolve(request.result);
+    request.onerror = () => reject(request.error);
+  });
+  return listeningDBPromise;
+}
+async function eventTransaction(mode, callback) {
+  const db = await openListeningDB();
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction('events', mode);
+    const store = tx.objectStore('events');
+    const req = callback(store);
+    tx.oncomplete = () => resolve(req?.result);
+    tx.onerror = () => reject(tx.error);
+    tx.onabort = () => reject(tx.error);
+  });
+}
+async function reloadPlayEvents() {
+  playEvents = await eventTransaction('readonly', store => store.getAll());
+  playEvents.sort((a,b) => b.playedAt.localeCompare(a.playedAt));
+}
+function playTombstones() {
+  try { return JSON.parse(localStorage.getItem('vinyl-listen-removed') || '[]'); }
+  catch { return []; }
+}
+function saveTombstones(ids) { localStorage.setItem('vinyl-listen-removed', JSON.stringify([...new Set(ids)])); }
+async function markPlayed(recordId) {
+  if (!records.some(r => r.id === recordId)) return;
+  const entry = {id: crypto.randomUUID(), recordId, playedAt:new Date().toISOString()};
+  await eventTransaction('readwrite', store => store.put(entry));
+  lastPlayedEvent = entry;
+  await reloadPlayEvents();
+  if (currentView === 'coverflow') renderCoverFlow();
+  if (currentView === 'plays') renderPlays();
+  const r = records.find(x => x.id === recordId);
+  document.getElementById('status-text').innerHTML = `Saved play for ${escapeHtml(r.albumTitle || 'Record')} · <button type="button" id="undo-last-play" style="border:0;background:none;color:var(--brass);font:inherit;text-decoration:underline">Undo</button>`;
+  document.getElementById('undo-last-play').onclick = undoLastPlay;
+  if (listenSettings.token) syncListeningHistory(false);
+}
+async function undoLastPlay() {
+  if (!lastPlayedEvent) return;
+  const id = lastPlayedEvent.id;
+  lastPlayedEvent = null;
+  await eventTransaction('readwrite', store => store.delete(id));
+  saveTombstones([...playTombstones(),id]);
+  await reloadPlayEvents();
+  document.getElementById('status-text').textContent = 'Play removed';
+  render();
+  if (listenSettings.token) syncListeningHistory(false);
+}
+function localTime(iso) { return new Date(iso).toLocaleString([], {month:'short',day:'numeric',hour:'numeric',minute:'2-digit'}); }
+function playCount(id) { return playEvents.filter(e=>e.recordId===id).length; }
+function playRowHtml(r, note, suffix='') { return `<div class="play-row"><div><div class="play-row-title">${escapeHtml(r.albumTitle || 'Untitled')}</div><div class="play-row-note">${escapeHtml(note)}</div></div><button type="button" class="plays-button" data-play-id="${escapeHtml(r.id)}">＋ Played</button></div>`; }
+function renderPlays() {
+  const el = document.getElementById('plays-view');
+  const seenIds = new Set(playEvents.map(e=>e.recordId));
+  const counts = [...seenIds].map(id=>({id,count:playCount(id)})).sort((a,b)=>b.count-a.count);
+  const filters = [['recent','Recently played'],['never','Never played'],['random','Random pick'],['top','Most played']];
+  let content = '';
+  if (listenFilter === 'recent') {
+    content = playEvents.slice(0,50).map(e=> {const r=records.find(x=>x.id===e.recordId);return r? playRowHtml(r,localTime(e.playedAt)+' · '+playCount(r.id)+' total plays') : ''}).join('');
+  } else if (listenFilter === 'never') {
+    content = records.filter(r=>!seenIds.has(r.id)).sort((a,b)=>(a.albumTitle||'').localeCompare(b.albumTitle||'')).map(r=>playRowHtml(r,'Not played since tracking started')).join('');
+  } else if (listenFilter === 'random') {
+    const r = records.find(x=>x.id===randomPickId) || records[0];
+    content = r ? playRowHtml(r, playCount(r.id)+' plays')+'<button class="plays-button" id="pick-another" style="margin-top:15px">Pick another</button>' : '';
+  } else {
+    content = counts.map(o=>{const r=records.find(x=>x.id===o.id); return r? playRowHtml(r,o.count+' plays') : ''}).join('');
+  }
+  el.innerHTML = `<div class="play-summary"><strong>${playEvents.length}</strong> plays · <strong>${seenIds.size}</strong> records played · <strong>${Math.max(0,records.length-seenIds.size)}</strong> not played</div>
+    <div class="play-controls">${filters.map(([id,label])=>`<button data-filter="${id}" class="${listenFilter===id?'selected':''}">${label}</button>`).join('')}</div>
+    ${content || '<div class="empty-state">No plays recorded yet.</div>'}
+    <div class="play-controls"><button type="button" id="history-sync">Sync GitHub</button><button type="button" id="history-export">Export backup</button><button type="button" id="history-import">Restore backup</button><input id="history-import-file" type="file" accept="application/json,.json" style="display:none"></div>
+    <div class="sync-note">History is saved on this phone first. GitHub synchronization needs a configured private repository and access token under Settings.</div>`;
+  el.querySelectorAll('[data-filter]').forEach(b=>b.onclick=()=>{listenFilter=b.dataset.filter; if(listenFilter==='random') chooseRandom();renderPlays();});
+  el.querySelectorAll('[data-play-id]').forEach(b=>b.onclick=()=>markPlayed(b.dataset.playId));
+  el.querySelector('#history-sync').onclick=()=>syncListeningHistory(true);
+  el.querySelector('#history-export').onclick=exportListeningBackup;
+  el.querySelector('#history-import').onclick=()=>el.querySelector('#history-import-file').click();
+  el.querySelector('#history-import-file').onchange=async e=>{const file=e.target.files[0];if(file)await importListeningBackup(file);};
+  const next=el.querySelector('#pick-another'); if(next) next.onclick=()=>{chooseRandom();renderPlays();};
+}
+let randomPickId = '';
+function chooseRandom() { if(records.length) randomPickId=records[Math.floor(Math.random()*records.length)].id; }
+function initListeningSettings() {
+  document.getElementById('listen-gh-owner').value = listenSettings.owner;
+  document.getElementById('listen-gh-repo').value = listenSettings.repo;
+  document.getElementById('listen-gh-token').value = listenSettings.token;
+  document.getElementById('listen-remember-token').checked = Boolean(localStorage.getItem('vinyl-listen-token'));
+}
+function listenStatus(message, error=false) {
+  const el=document.getElementById('listen-sync-state');
+  el.textContent=message; el.classList.toggle('error',error);
+  if(error) document.getElementById('status-text').textContent = 'Listening sync: '+message;
+}
+function saveListeningSettings() {
+  const owner = document.getElementById('listen-gh-owner').value.trim();
+  const repo = document.getElementById('listen-gh-repo').value.trim();
+  const token = document.getElementById('listen-gh-token').value.trim();
+  if (!/^[A-Za-z0-9-]{1,39}$/.test(owner) || !/^[A-Za-z0-9_.-]{1,100}$/.test(repo)) { listenStatus('Enter a valid GitHub username and repository.',true);return false; }
+  listenSettings.owner=owner;listenSettings.repo=repo;listenSettings.token=token;
+  localStorage.setItem('vinyl-listen-owner',owner);localStorage.setItem('vinyl-listen-repo',repo);
+  if(document.getElementById('listen-remember-token').checked) {
+    localStorage.setItem('vinyl-listen-token',token);sessionStorage.removeItem('vinyl-listen-token');
+  } else {
+    localStorage.removeItem('vinyl-listen-token');sessionStorage.setItem('vinyl-listen-token',token);
+  }
+  return true;
+}
+function githubHeaders() {return {'Accept':'application/vnd.github+json','Authorization':'Bearer '+listenSettings.token,'X-GitHub-Api-Version':'2022-11-28'};}
+function encodeBase64UTF8(value) {
+  const bytes = new TextEncoder().encode(value);
+  let str='';for(let i=0;i<bytes.length;i+=8192) str+=String.fromCharCode(...bytes.subarray(i,i+8192));
+  return btoa(str);
+}
+function decodeBase64UTF8(value) {
+  const raw=atob(value.replace(/\s/g,''));
+  const bytes=Uint8Array.from(raw, c=>c.charCodeAt(0));
+  return new TextDecoder().decode(bytes);
+}
+function validatedEvents(input) {
+  if(!Array.isArray(input)) throw new Error('Invalid GitHub history format');
+  return input.filter(e=>e && typeof e.id==='string' && typeof e.recordId==='string' && typeof e.playedAt==='string' && !isNaN(Date.parse(e.playedAt)));
+}
+function historyUrl() { return `https://api.github.com/repos/${encodeURIComponent(listenSettings.owner)}/${encodeURIComponent(listenSettings.repo)}/contents/${LISTEN_FILE}`; }
+async function syncListeningHistory(showAlert=false) {
+  if(listeningSyncRunning){listeningResyncNeeded=true;return;}
+  if(!listenSettings.owner || !listenSettings.repo || !listenSettings.token){
+    if(showAlert) alert('Open Settings and enter a private GitHub repository and its restricted token first.');
+    return;
+  }
+  if(!navigator.onLine){listenStatus('Offline. Plays saved locally; sync when online.');return;}
+  listeningSyncRunning=true;
+  try {
+    // Optimistic concurrency: reread SHA and merge before each write; retry conflict.
+    for(let attempt=0;attempt<4;attempt++) {
+      const get=await fetch(historyUrl()+'?ts='+Date.now(),{headers:githubHeaders(),cache:'no-store'});
+      let remote={events:[],deletedIds:[]},sha=null;
+      if(get.ok){
+        const file=await get.json();sha=file.sha;
+        remote=JSON.parse(decodeBase64UTF8(file.content));
+      } else if(get.status!==404) throw new Error('Read failed (HTTP '+get.status+')');
+      else if(attempt===0) { /* A 404 may mean a new history file; PUT will validate access. */ }
+      const remoteEvents=validatedEvents(remote.events||[]);
+      const removed=[...new Set([...(remote.deletedIds||[]),...playTombstones()])];
+      const removedSet=new Set(removed);
+      const merged=new Map([...remoteEvents,...playEvents].filter(e=>!removedSet.has(e.id)).map(e=>[e.id,e]));
+      const mergedEvents=[...merged.values()].sort((a,b)=>a.playedAt.localeCompare(b.playedAt));
+      const content=encodeBase64UTF8(JSON.stringify({version:1,events:mergedEvents,deletedIds:removed},null,2)+'\n');
+      const body={message:'Update vinyl listening history',content}; if(sha)body.sha=sha;
+      const put=await fetch(historyUrl(),{method:'PUT',headers:{...githubHeaders(),'Content-Type':'application/json'},body:JSON.stringify(body)});
+      if(put.status===409 || put.status===422 && attempt<3) continue;
+      if(!put.ok) throw new Error('Write failed (HTTP '+put.status+'). Check repository name, token permissions and branch.');
+      // Merge the remote records into local storage. Local new taps are not overwritten.
+      for(const e of remoteEvents) if(!removedSet.has(e.id)) await eventTransaction('readwrite',store=>store.put(e));
+      for(const id of removed) await eventTransaction('readwrite',store=>store.delete(id));
+      saveTombstones(removed);
+      await reloadPlayEvents();
+      listenStatus('Synced '+playEvents.length+' plays with GitHub');
+      if(currentView==='plays')renderPlays();
+      if(currentView==='coverflow')renderCoverFlow();
+      if(showAlert)alert('Listening history synced successfully.');
+      return;
+    }
+    throw new Error('GitHub file changed repeatedly; please retry.');
+  } catch(error) {
+    listenStatus(error.message,true);
+    if(showAlert)alert('Listening history is safe on this phone, but GitHub sync failed: '+error.message);
+  } finally {
+    listeningSyncRunning=false;
+    if(listeningResyncNeeded){listeningResyncNeeded=false;syncListeningHistory(false);}
+  }
+}
+async function importListeningBackup(file) {
+  try {
+    const data=JSON.parse(await file.text());
+    const events=validatedEvents(data.events);
+    if(!confirm('Merge '+events.length+' saved listening events into this iPhone? Existing plays will be kept.'))return;
+    const removed=[...new Set([...playTombstones(),...(data.deletedIds||[])])];
+    const removedSet=new Set(removed);
+    for(const event of events) if(!removedSet.has(event.id)) await eventTransaction('readwrite',store=>store.put(event));
+    for(const id of removed) await eventTransaction('readwrite',store=>store.delete(id));
+    saveTombstones(removed);
+    await reloadPlayEvents();renderPlays();
+    if(listenSettings.token) syncListeningHistory(false);
+    alert('Listening history restored.');
+  }catch(error){alert('Cannot import this history file: '+error.message);}
+}
+function exportListeningBackup() {
+  const data={version:1,exportedAt:new Date().toISOString(),events:playEvents,deletedIds:playTombstones()};
+  const blob=new Blob([JSON.stringify(data,null,2)],{type:'application/json'});
+  const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='vinyl-listening-history-backup.json';a.click();
+  setTimeout(()=>URL.revokeObjectURL(a.href),1000);
+}
+document.getElementById('listen-save-settings').onclick=()=>{if(saveListeningSettings())syncListeningHistory(true);};
+document.getElementById('listen-sync').onclick=()=>{if(saveListeningSettings())syncListeningHistory(true);};
+async function initializeListening() {
+  try {await reloadPlayEvents();if(listenSettings.token)syncListeningHistory(false);} 
+  catch(error){console.error('Unable to load listening history',error);document.getElementById('status-text').textContent='Listening storage unavailable; check browser settings';}
+  if(currentView==='plays')renderPlays();
+}
+window.addEventListener('online',()=>{if(listenSettings.token)syncListeningHistory(false);});
+initializeListening();
 
 loadData();
 </script>
