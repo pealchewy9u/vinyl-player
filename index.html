@@ -340,6 +340,12 @@
     <div class="summary-tiny" style="margin:10px 0 18px">Changes approximate display amounts only, not purchase prices or online quotes. This setting is stored on this phone.</div>
     <button id="settings-save" type="button">Save conversion rate</button>
     <div class="listen-settings">
+      <strong>Offline collection</strong>
+      <p class="sync-note">The app and collection are saved for offline browsing. Covers you view are cached automatically. Save all available covers for a complete offline gallery.</p>
+      <div class="play-controls"><button id="offline-save-covers" type="button">Save all covers offline</button></div>
+      <div id="offline-progress" class="sync-note" role="status" aria-live="polite">No downloads required for your listening history: plays are saved locally until GitHub is available.</div>
+    </div>
+    <div class="listen-settings">
       <strong>Listening history · GitHub</strong>
       <p class="sync-note">Use a separate PRIVATE GitHub repository. The access token is entered on this device; it is never included in your published site files.</p>
       <label for="listen-gh-owner">GitHub username / owner</label><input id="listen-gh-owner" autocomplete="off" placeholder="your-username" />
@@ -419,8 +425,9 @@ async function loadData() {
     localStorage.setItem('vinyl-cache', JSON.stringify(records));
     const now = new Date();
     localStorage.setItem('vinyl-cache-time', now.toISOString());
-    document.getElementById('status-text').textContent =
-      records.length + ' records · updated ' + now.toLocaleString([], {month:'short', day:'numeric', hour:'2-digit', minute:'2-digit'});
+    document.getElementById('status-text').textContent = !navigator.onLine
+      ? records.length + ' records · offline copy'
+      : records.length + ' records · updated ' + now.toLocaleString([], {month:'short', day:'numeric', hour:'2-digit', minute:'2-digit'});
   } catch (e) {
     const cached = localStorage.getItem('vinyl-cache');
     if (cached) {
@@ -767,21 +774,62 @@ document.getElementById('detail-overlay').addEventListener('click', e => {
   if (e.target.id === 'detail-overlay') closeDetail();
 });
 
-// Deliberately NOT registering a service worker right now -- iOS is notoriously
-// slow to re-check an installed Home Screen PWA's service worker for updates,
-// which was causing code changes to silently never show up. Actively clean up
-// any previously-registered one too, so a phone that already installed the old
-// version doesn't stay stuck on it. We can reintroduce offline support later
-// once the app itself has settled and isn't changing every few minutes.
+// Network-first page/data updates with offline fallback are handled by sw.js.
+// Listen events and the restricted GitHub token remain outside the service-worker cache.
 if ('serviceWorker' in navigator) {
-  navigator.serviceWorker.getRegistrations().then(regs => {
-    regs.forEach(reg => reg.unregister());
-  });
-}
-if ('caches' in window) {
-  caches.keys().then(keys => keys.forEach(k => caches.delete(k)));
+  navigator.serviceWorker.register('./sw.js', {updateViaCache:'none'})
+    .then(reg => {
+      reg.update().catch(() => {});
+      // Existing installations take control on reload; prompt quietly if an update is ready.
+      reg.addEventListener('updatefound', () => {
+        const worker = reg.installing;
+        if (!worker) return;
+        worker.addEventListener('statechange', () => {
+          if (worker.state === 'activated' && navigator.serviceWorker.controller) {
+            const status = document.getElementById('offline-progress');
+            if (status) status.textContent = 'Offline app updated. The latest version will be used next time you open it.';
+          }
+        });
+      });
+    })
+    .catch(error => console.warn('Offline support unavailable:', error));
 }
 
+// User-controlled full cover download. Normal browsing caches covers automatically.
+// This never touches GitHub tokens, listening data, or the collection itself.
+async function saveCoversOffline() {
+  const button = document.getElementById('offline-save-covers');
+  const progress = document.getElementById('offline-progress');
+  if (!('caches' in window)) { progress.textContent = 'This browser does not support offline cover caching.'; return; }
+  if (!navigator.onLine) { progress.textContent = 'Connect to the internet to save covers first.'; return; }
+  const filenames = [...new Set(records.map(r => r.photoFilename).filter(Boolean))];
+  button.disabled = true;
+  let downloaded = 0, unavailable = 0;
+  try {
+    const cache = await caches.open('vinyl-covers-v1');
+    let cursor = 0;
+    async function worker() {
+      while (cursor < filenames.length) {
+        const name = filenames[cursor++];
+        const url = new URL('./Photos/' + encodeURIComponent(name), location.href).href;
+        try {
+          if (!(await cache.match(url))) {
+            const response = await fetch(url, {cache:'no-store'});
+            if (!response.ok || response.type === 'opaque') throw new Error('Cover unavailable');
+            await cache.put(url, response.clone());
+          }
+          downloaded++;
+        } catch (_) { unavailable++; }
+        progress.textContent = 'Saved ' + downloaded + ' of ' + filenames.length + ' covers' + (unavailable ? ' · ' + unavailable + ' unavailable' : '');
+      }
+    }
+    await Promise.all([worker(),worker(),worker()]);
+    progress.textContent = 'Offline covers ready: ' + downloaded + ' saved' + (unavailable ? ', ' + unavailable + ' unavailable' : '') + '. Listening history is saved locally and syncs when online.';
+  } catch (error) {
+    progress.textContent = 'Could not finish saving covers: ' + error.message + '. Previously saved covers remain available.';
+  } finally { button.disabled = false; }
+}
+document.getElementById('offline-save-covers').addEventListener('click', saveCoversOffline);
 
 // --- Listening events, stored independently of collection.json. ---
 const LISTEN_DB = 'vinyl-listening-v1';
