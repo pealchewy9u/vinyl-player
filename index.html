@@ -278,6 +278,22 @@
   .listen-settings input[type=checkbox] { width:auto; }
   .sync-note { font-size:12px; color:var(--text-muted); line-height:1.5; margin-top:9px; }
   .sync-note.error { color:var(--maroon); }
+
+/* Desktop Chrome layout: phone styling remains unchanged. */
+@media (min-width: 900px) {
+  #app { width: 100%; }
+  header { padding: 18px 30px 12px; }
+  .header-title-row { display: flex; width: 100%; align-items: center; justify-content: flex-end; gap: 10px; }
+  .header-title-row h1 { margin-right: auto; flex: 0 1 auto; }
+  #refresh-btn, #settings-btn { flex: 0 0 auto; margin: 0; }
+  .tabs { max-width: 760px; margin: 0 auto; width: 100%; justify-content: center; }
+  .search-row { max-width: 940px; margin-left: auto; margin-right: auto; }
+  header > div:last-child { max-width: 940px; margin-left: auto; margin-right: auto; }
+  #list-view, #summary-view, #value-view, #plays-view { max-width: 1180px; margin: 0 auto; width: 100%; }
+  #list-view { padding: 16px 12px 36px; }
+  #detail-sheet { width: min(640px, 100%); margin: 0 auto; border-radius: 18px 18px 0 0; }
+  .cf-scroll { padding-left: calc(50vw - 85px); padding-right: calc(50vw - 85px); }
+}
 </style>
 </head>
 <body>
