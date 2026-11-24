@@ -217,17 +217,47 @@
   .summary-fx { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-top: 12px; }
   .summary-fx input { width: 74px; border: 1px solid var(--groove); border-radius: 9px; padding: 8px; font-size: 13px; background: var(--surface); color: var(--text); }
   .summary-fx button { border: 1px solid var(--groove); border-radius: 9px; padding: 8px 12px; background: var(--surface-raised); color: var(--text); font-weight: 600; }
+  /* Settings is a full-screen, independently scrollable page on iPhone. */
   #settings-overlay {
     display: none; position: fixed; inset: 0; z-index: 80;
-    background: rgba(58,38,21,.38); align-items: center; justify-content: center; padding: 20px;
+    background: var(--background); align-items: flex-start; justify-content: center;
+    padding: 0; overflow-y: auto; -webkit-overflow-scrolling: touch;
+    overscroll-behavior: contain;
   }
-  .settings-panel { width: min(100%, 420px); border-radius: 18px; background: var(--background);
-    padding: 22px; box-shadow: 0 12px 36px rgba(58,38,21,.22); }
-  .settings-panel label { display: block; margin: 14px 0 7px; font-size: 13px; color: var(--text-muted); }
-  .settings-panel input { width: 100%; border: 1px solid var(--groove); border-radius: 9px;
-    padding: 11px; background: var(--surface); color: var(--text); font-size: 16px; }
-  .settings-panel button { border: 1px solid var(--groove); border-radius: 9px;
-    padding: 9px 15px; background: var(--surface-raised); color: var(--text); cursor: pointer; }
+  .settings-panel {
+    width: min(100%, 680px); min-height: 100%; background: var(--background);
+    padding: calc(12px + env(safe-area-inset-top)) 18px calc(36px + env(safe-area-inset-bottom));
+  }
+  .settings-heading {
+    position: sticky; top: 0; z-index: 2; display: flex; align-items: center;
+    justify-content: space-between; gap: 12px; background: var(--background);
+    padding: 6px 0 15px;
+  }
+  .settings-heading strong { font-size: 22px; }
+  .settings-section { border-top: 1px solid var(--groove); padding: 18px 0; }
+  .settings-section h2 { font-size: 16px; margin: 0 0 12px; }
+  .settings-panel label { display: block; margin: 12px 0 6px; font-size: 13px; color: var(--text-muted); }
+  .settings-panel input:not([type=checkbox]) {
+    width: 100%; min-width: 0; border: 1px solid var(--groove); border-radius: 9px;
+    padding: 11px; background: var(--surface); color: var(--text); font-size: 16px;
+  }
+  .settings-panel button {
+    border: 1px solid var(--groove); border-radius: 9px; padding: 11px 13px;
+    background: var(--surface-raised); color: var(--text); cursor: pointer;
+    font: 600 13px -apple-system, BlinkMacSystemFont, "Helvetica Neue", sans-serif;
+    min-height: 42px;
+  }
+  .settings-rate-row { display: flex; align-items: center; gap: 9px; }
+  .settings-rate-row input { flex: 1; }
+  .settings-rate-row button { flex-shrink: 0; white-space: nowrap; }
+  .settings-check { display: flex !important; align-items: center; gap: 9px; margin: 14px 0 3px !important; }
+  .settings-check input { width: 18px !important; height: 18px; flex: 0 0 18px; margin: 0; }
+  .settings-check span { flex: 1; }
+  .settings-help { color: var(--text-muted); font-size: 11px; line-height: 1.4; margin: 7px 0 12px; }
+  .settings-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+  .settings-actions button { flex: 1; }
+  .settings-panel .sync-note { margin-top: 9px; }
+  #settings-fx-state:empty, #offline-progress:empty, #listen-sync-state:empty { display: none; }
   .sheet-price-card { display: flex; flex-direction: column; gap: 6px; padding: 13px; background: var(--surface); border: 1px solid var(--groove); border-radius: 12px; margin: 12px 0; }
   .sheet-price-card .field-value { font-size: 20px; font-weight: 700; }
   @media (min-width: 620px) { #summary-view, #value-view { max-width: 680px; margin: auto; width: 100%; } }
@@ -394,32 +424,45 @@
 
 <div id="settings-overlay" role="dialog" aria-modal="true" aria-label="Settings">
   <div class="settings-panel">
-    <div style="display:flex;align-items:center;justify-content:space-between;gap:12px">
-      <strong style="font-size:20px">Settings</strong>
-      <button id="settings-close" type="button">Close</button>
+    <div class="settings-heading">
+      <strong>Settings</strong>
+      <button id="settings-close" type="button">Done</button>
     </div>
-    <label for="settings-fx-rate">Currency conversion — INR per $1</label>
-    <input type="number" id="settings-fx-rate" min="0.01" step="0.01" inputmode="decimal" />
-    <div class="summary-tiny" style="margin:10px 0 18px">Changes approximate display amounts only, not purchase prices or online quotes. This setting is stored on this phone.</div>
-    <button id="settings-save" type="button">Save conversion rate</button>
-    <div class="listen-settings">
-      <strong>Offline collection</strong>
-      <p class="sync-note">The app and collection are saved for offline browsing. Covers you view are cached automatically. Save all available covers for a complete offline gallery.</p>
-      <div class="play-controls"><button id="offline-save-covers" type="button">Save all covers offline</button></div>
-      <div id="offline-progress" class="sync-note" role="status" aria-live="polite">No downloads required for your listening history: plays are saved locally until GitHub is available.</div>
-    </div>
-    <div class="listen-settings">
-      <strong>Listening history · GitHub</strong>
-      <p class="sync-note">Use a separate PRIVATE GitHub repository. The access token is entered on this device; it is never included in your published site files.</p>
-      <label for="listen-gh-owner">GitHub username / owner</label><input id="listen-gh-owner" autocomplete="off" placeholder="your-username" />
-      <label for="listen-gh-repo">Private repository name</label><input id="listen-gh-repo" autocomplete="off" placeholder="vinyl-listening-history" />
-      <label for="listen-gh-token">Fine-grained GitHub token</label><input id="listen-gh-token" type="password" autocomplete="off" placeholder="github_pat_..." />
-      <label><input id="listen-remember-token" type="checkbox" /> Remember token on this iPhone (convenient, less secure)</label>
-      <p class="sync-note">If unchecked, the token lasts only until this app session closes. A remembered token may be exposed if the device or website storage is compromised. Restrict it to this one repository and Contents read/write.</p>
-      <div class="play-controls"><button id="listen-save-settings" type="button">Save &amp; sync</button><button id="listen-sync" type="button">Sync now</button></div>
-      <div id="listen-sync-state" class="sync-note">Plays are always saved on this iPhone first.</div>
-    </div>
-
+    <section class="settings-section">
+      <h2>Currency</h2>
+      <label for="settings-fx-rate">INR per $1</label>
+      <div class="settings-rate-row">
+        <input type="number" id="settings-fx-rate" min="0.01" step="0.01" inputmode="decimal" />
+        <button id="settings-save" type="button">Save rate</button>
+      </div>
+      <div id="settings-fx-state" class="sync-note" role="status" aria-live="polite"></div>
+    </section>
+    <section class="settings-section">
+      <h2>Offline covers</h2>
+      <button id="offline-save-covers" type="button">Save all covers offline</button>
+      <div id="offline-progress" class="sync-note" role="status" aria-live="polite"></div>
+    </section>
+    <section class="settings-section">
+      <h2>Listening history · GitHub</h2>
+      <label for="listen-gh-owner">GitHub username</label>
+      <input id="listen-gh-owner" autocomplete="off" autocapitalize="off" placeholder="Username" />
+      <label for="listen-gh-repo">Private repository</label>
+      <input id="listen-gh-repo" autocomplete="off" autocapitalize="off" placeholder="vinyl-listening-history" />
+      <label for="listen-gh-token">Access token</label>
+      <input id="listen-gh-token" type="password" autocomplete="off" autocapitalize="off" placeholder="GitHub token" />
+      <label class="settings-check" for="listen-remember-token">
+        <input id="listen-remember-token" type="checkbox" />
+        <span>Remember token on this iPhone</span>
+      </label>
+      <div class="settings-help">Only use a token restricted to this private repository. Remembering it stores it on this device.</div>
+      <button id="listen-sync" type="button">Save &amp; sync listening history</button>
+      <div id="listen-sync-state" class="sync-note" role="status" aria-live="polite"></div>
+      <div class="settings-actions">
+        <button id="listen-backup-export" type="button">Export backup</button>
+        <button id="listen-backup-import" type="button">Restore backup</button>
+        <input id="listen-backup-file" type="file" accept="application/json,.json" style="display:none" />
+      </div>
+    </section>
   </div>
 </div>
 
@@ -817,7 +860,9 @@ document.getElementById('refresh-btn').addEventListener('click', loadData);
 document.getElementById('settings-btn').addEventListener('click', () => {
   document.getElementById('settings-fx-rate').value = String(inrPerUSD);
   initListeningSettings();
-  document.getElementById('settings-overlay').style.display = 'flex';
+  const settingsPage = document.getElementById('settings-overlay');
+  settingsPage.style.display = 'flex';
+  settingsPage.scrollTop = 0;
 });
 function closeSettings() { document.getElementById('settings-overlay').style.display = 'none'; }
 document.getElementById('settings-close').addEventListener('click', closeSettings);
@@ -829,7 +874,7 @@ document.getElementById('settings-save').addEventListener('click', () => {
   if (!Number.isFinite(rate) || rate <= 0) { alert('Enter a valid rate greater than zero.'); return; }
   inrPerUSD = rate;
   localStorage.setItem('vinyl-fx-rate', String(rate));
-  closeSettings();
+  document.getElementById('settings-fx-state').textContent = 'Saved';
   render();
 });
 
@@ -894,7 +939,7 @@ async function saveCoversOffline() {
       }
     }
     await Promise.all([worker(),worker(),worker()]);
-    progress.textContent = 'Offline covers ready: ' + downloaded + ' saved' + (unavailable ? ', ' + unavailable + ' unavailable' : '') + '. Listening history is saved locally and syncs when online.';
+    progress.textContent = 'Offline covers ready: ' + downloaded + ' saved' + (unavailable ? ', ' + unavailable + ' unavailable' : '') + '.';
   } catch (error) {
     progress.textContent = 'Could not finish saving covers: ' + error.message + '. Previously saved covers remain available.';
   } finally { button.disabled = false; }
@@ -989,14 +1034,9 @@ function renderPlays() {
   el.innerHTML = `<div class="play-summary"><strong>${playEvents.length}</strong> plays · <strong>${seenIds.size}</strong> records played · <strong>${Math.max(0,records.length-seenIds.size)}</strong> not played</div>
     <div class="play-controls">${filters.map(([id,label])=>`<button data-filter="${id}" class="${listenFilter===id?'selected':''}">${label}</button>`).join('')}</div>
     ${content || '<div class="empty-state">No plays recorded yet.</div>'}
-    <div class="play-controls"><button type="button" id="history-sync">Sync GitHub</button><button type="button" id="history-export">Export backup</button><button type="button" id="history-import">Restore backup</button><input id="history-import-file" type="file" accept="application/json,.json" style="display:none"></div>
-    <div class="sync-note">History is saved on this phone first. GitHub synchronization needs a configured private repository and access token under Settings.</div>`;
+    `;
   el.querySelectorAll('[data-filter]').forEach(b=>b.onclick=()=>{listenFilter=b.dataset.filter; if(listenFilter==='random') chooseRandom();renderPlays();});
   el.querySelectorAll('[data-play-id]').forEach(b=>b.onclick=()=>markPlayed(b.dataset.playId));
-  el.querySelector('#history-sync').onclick=()=>syncListeningHistory(true);
-  el.querySelector('#history-export').onclick=exportListeningBackup;
-  el.querySelector('#history-import').onclick=()=>el.querySelector('#history-import-file').click();
-  el.querySelector('#history-import-file').onchange=async e=>{const file=e.target.files[0];if(file)await importListeningBackup(file);};
   const next=el.querySelector('#pick-another'); if(next) next.onclick=()=>{chooseRandom();renderPlays();};
 }
 let randomPickId = '';
@@ -1111,8 +1151,18 @@ function exportListeningBackup() {
   const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='vinyl-listening-history-backup.json';a.click();
   setTimeout(()=>URL.revokeObjectURL(a.href),1000);
 }
-document.getElementById('listen-save-settings').onclick=()=>{if(saveListeningSettings())syncListeningHistory(true);};
-document.getElementById('listen-sync').onclick=()=>{if(saveListeningSettings())syncListeningHistory(true);};
+document.getElementById('listen-sync').onclick=()=>{
+  if (!saveListeningSettings()) return;
+  if (!listenSettings.token) { listenStatus('Enter a GitHub token to sync.', true); return; }
+  syncListeningHistory(true);
+};
+document.getElementById('listen-backup-export').onclick=exportListeningBackup;
+document.getElementById('listen-backup-import').onclick=()=>document.getElementById('listen-backup-file').click();
+document.getElementById('listen-backup-file').onchange=async e=>{
+  const file=e.target.files[0];
+  if(file) await importListeningBackup(file);
+  e.target.value='';
+};
 async function initializeListening() {
   try {await reloadPlayEvents();if(listenSettings.token)syncListeningHistory(false);} 
   catch(error){console.error('Unable to load listening history',error);document.getElementById('status-text').textContent='Listening storage unavailable; check browser settings';}
